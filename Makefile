@@ -21,9 +21,12 @@ ARCH_DIR := arch/arm64
 ARCH_BUILD_DIR := $(BUILD_DIR)/arch
 CORE_BUILD_DIR := $(BUILD_DIR)/core
 
+# Final Binary directory
+BIN_DIR := bin
+
 # Target binary image
-KERNEL_ELF := $(BUILD_DIR)/kernel.elf
-KERNEL_BIN := $(BUILD_DIR)/kernel.bin
+KERNEL_ELF := $(BIN_DIR)/kernel.elf
+KERNEL_BIN := $(BIN_DIR)/kernel.bin
 
 # Architecture-specific flags
 include $(ARCH_DIR)/arch.mk
@@ -45,7 +48,7 @@ all: directories kernel
 
 # Create build directories
 directories:
-	@mkdir -p $(BUILD_DIR) $(ARCH_BUILD_DIR)/boot $(ARCH_BUILD_DIR)/interrupt $(ARCH_BUILD_DIR)/uart $(CORE_BUILD_DIR)
+	@mkdir -p $(BIN_DIR) $(BUILD_DIR) $(ARCH_BUILD_DIR)/boot $(ARCH_BUILD_DIR)/interrupt $(ARCH_BUILD_DIR)/uart $(CORE_BUILD_DIR)
 
 # Build subsystems
 arch:
@@ -57,19 +60,23 @@ core:
 # Link kernel
 kernel: arch core
 	$(LD) $(LDFLAGS) -o $(KERNEL_ELF) \
-		$(ARCH_BUILD_DIR)/boot/boot.o \
 		$(ARCH_BUILD_DIR)/boot/start.o \
+		$(ARCH_BUILD_DIR)/boot/boot.o \
 		$(ARCH_BUILD_DIR)/interrupt/vector.o \
 		$(ARCH_BUILD_DIR)/uart/uart.o \
 		$(CORE_BUILD_DIR)/kernel_main.o
 	$(OBJCOPY) -O binary $(KERNEL_ELF) $(KERNEL_BIN)
 	$(OBJDUMP) -D $(KERNEL_ELF) > $(BUILD_DIR)/kernel.dump
+	@echo "Kernel build successfully:"
+	@echo "		ELF: $(KERNEL_ELF)"
+	@echo "		BIN: $(KERNEL_BIN)"
 
 # Clean build artifacts
 clean:
 	$(MAKE) -C $(ARCH_DIR) clean
 	$(MAKE) -C core clean
 	rm -rf $(BUILD_DIR)
+	rm -rf $(BIN_DIR)
 
 # Run in QEMU (if applicable)
 run: all

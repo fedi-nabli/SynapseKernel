@@ -7,8 +7,7 @@ BUILD_DIR := ../build/core
 INCLUDES := -I../arch/arm64/includes
 
 # Source files
-C_SRCS := $(wildcard *.c)
-OBJ_FILES := $(patsubst %.c,$(BUILD_DIR)/%.o,$(C_SRCS))
+OBJ_FILES := $(BUILD_DIR)/kernel_main.o
 
 # Compile flags
 CFLAGS += $(INCLUDES) -Wall -Wextra
@@ -20,9 +19,9 @@ all: $(OBJ_FILES)
 $(BUILD_DIR):
 	@mkdir -p $(BUILD_DIR)
 
-# Compile C files
-$(BUILD_DIR)/%.o: %.c | $(BUILD_DIR)
-	$(CC) $(CFLAGS) -c -o $@ $<
+# Compile C kernel main file
+$(BUILD_DIR)/kernel_main.o: kernel_main.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -c -o $(BUILD_DIR)/kernel_main.o kernel_main.c
 
 # Clean build artifacts
 clean:

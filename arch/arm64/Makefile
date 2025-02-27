@@ -9,15 +9,10 @@ BOOT_DIR := boot
 INTERRUPT_DIR := interrupt
 UART_DIR := uart
 
-# Source files
-BOOT_SRCS := $(wildcard $(BOOT_DIR)/*.S)
-INTERRUPT_SRCS := $(wildcard $(INTERRUPT_DIR)/*.S)
-UART_SRCS := $(wildcard $(UART_DIR)/*.S)
-
 # Object files
-BOOT_OBJS := $(patsubst $(BOOT_DIR)/%.S,$(BUILD_DIR)/$(BOOT_DIR)/%.o,$(BOOT_SRCS))
-INTERRUPT_OBJS := $(patsubst $(INTERRUPT_DIR)/%.S,$(BUILD_DIR)/$(INTERRUPT_DIR)/%.o,$(INTERRUPT_SRCS))
-UART_OBJS := $(patsubst $(UART_DIR)/%.S,$(BUILD_DIR)/$(UART_DIR)/%.o,$(UART_SRCS))
+BOOT_OBJS := $(BUILD_DIR)/$(BOOT_DIR)/start.o $(BUILD_DIR)/$(BOOT_DIR)/boot.o
+INTERRUPT_OBJS := $(BUILD_DIR)/$(INTERRUPT_DIR)/vector.o
+UART_OBJS := $(BUILD_DIR)/$(UART_DIR)/uart.o
 
 # All object files
 ALL_OBJS := $(BOOT_OBJS) $(INTERRUPT_OBJS) $(UART_OBJS)
@@ -29,17 +24,27 @@ all: $(ALL_OBJS)
 $(BUILD_DIR)/$(BOOT_DIR) $(BUILD_DIR)/$(INTERRUPT_DIR) $(BUILD_DIR)/$(UART_DIR):
 	@mkdir -p $@
 
-# Compile boot assembly files
-$(BUILD_DIR)/$(BOOT_DIR)/%.o: $(BOOT_DIR)/%.S | $(BUILD_DIR)/$(BOOT_DIR)
-	$(AS) $(ASFLAGS) -o $@ $<
+# Compile bootloader stage 1 assembly files
+$(BUILD_DIR)/$(BOOT_DIR)/start.o: $(BOOT_DIR)/start.S | $(BUILD_DIR)/$(BOOT_DIR)
+	$(AS) $(ASFLAGS) -o $(BUILD_DIR)/$(BOOT_DIR)/start.o $(BOOT_DIR)/start.S
+
+# Compile bootloader stage 2 assembly files
+$(BUILD_DIR)/$(BOOT_DIR)/boot.o: $(BOOT_DIR)/boot.S | $(BUILD_DIR)/$(BOOT_DIR)
+	$(AS) $(ASFLAGS) -o $(BUILD_DIR)/$(BOOT_DIR)/boot.o $(BOOT_DIR)/boot.S
 
 # Compile interrupt assembly file
-$(BUILD_DIR)/$(INTERRUPT_DIR)/%.o: $(INTERRUPT_DIR)/%.S | $(BUILD_DIR)/$(INTERRUPT_DIR)
-	$(AS) $(ASFLAGS) -o $@ $<
+$(BUILD_DIR)/$(INTERRUPT_DIR)/vector.o: $(INTERRUPT_DIR)/vector.S | $(BUILD_DIR)/$(INTERRUPT_DIR)
+	$(AS) $(ASFLAGS) -o $(BUILD_DIR)/$(INTERRUPT_DIR)/vector.o $(INTERRUPT_DIR)/vector.S
 
 # Compile uart assembly file
-$(BUILD_DIR)/$(UART_DIR)/%.o: $(UART_DIR)/%.S | $(BUILD_DIR)/$(UART_DIR)
-	$(AS) $(ASFLAGS) -o $@ $<
+$(BUILD_DIR)/$(UART_DIR)/uart.o: $(UART_DIR)/uart.S | $(BUILD_DIR)/$(UART_DIR)
+	$(AS) $(ASFLAGS) -o $(BUILD_DIR)/$(UART_DIR)/uart.o $(UART_DIR)/uart.S
+
+print_order:
+	@echo "Build Order:"
+	@echo "		Boot: $(BOOT_OBJS)"
+	@echo "		Interrupt: $(INTERRUPT_OBJS)"
+	@echo "		UART: $(UART_OBJS)"
 
 # Clean build artifacts
 clean:
