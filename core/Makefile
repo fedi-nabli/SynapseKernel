@@ -1,10 +1,11 @@
 # Core subsystem Makefile
 # Author: Fedi Nabli
 # Date: 26 Feb 2025
+# Last Modified: 1 Mar 2025
 
 # Directories definitions
 BUILD_DIR := ../build/core
-INCLUDES := -I../arch/arm64/includes
+INCLUDES := -I../arch/arm64/includes -I../includes
 
 # Source files
 OBJ_FILES := $(BUILD_DIR)/kernel_main.o

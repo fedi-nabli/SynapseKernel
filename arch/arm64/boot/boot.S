@@ -6,6 +6,7 @@
  *
  * Author: Fedi Nabli
  * Date: 26 Feb 2025
+ * Last Modified: 26 Feb 2025
  */
 
 .section ".text.boot.stage2"
@@ -18,7 +19,7 @@ boot_second_stage:
   add x0, x0, :lo12:str_stage2
   bl uart_send_string
 
-  // Setup miniman C environment
+  // Setup minimal C environment
 
   // Configure system registers
   mrs x0, sctlr_el1 // System Control Register

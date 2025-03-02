@@ -2,6 +2,7 @@
  * Linker script for ARM Robotics Kernel with AI Engine
  * Author: Fedi Nabli
  * Date: 26 Feb 2025
+ * Last Modified: 26 Feb 2025
  */
 
 OUTPUT_FORMAT("elf64-littleaarch64")

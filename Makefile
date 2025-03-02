@@ -1,6 +1,7 @@
 # Main Kernel Makefile
 # Author: Fedi Nabli
 # Date: 26 Feb 2025
+# Last Modified: 27 Feb 2025
 
 # Toolchain definitions for aarch64-linux-gnu
 CROSS_COMPILE ?= aarch64-linux-gnu-
@@ -34,7 +35,10 @@ include $(ARCH_DIR)/arch.mk
 # Global compiler flags
 # -ffreestanding and -nostdlib are crucial for bare-metal development
 CFLAGS += -mcpu=cortex-a53 -Wall -Wextra -ffreestanding -nostdlib -nostartfiles \
-          -fno-builtin -fno-stack-protector -fno-common -O2 -g
+          -fno-builtin -fno-stack-protector -fno-common -O2 -g \
+					-Wno-unused-parameter -Wno-unused-label -Werror \
+					-finline-functions -fomit-frame-pointer \
+					-falign-jumps -falign-functions -falign-labels -falign-loops
 
 # Linker flags and script
 LDFLAGS := -nostdlib -T $(ARCH_DIR)/linker.ld -Map=$(BUILD_DIR)/kernel.map

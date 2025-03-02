@@ -6,6 +6,7 @@
  *
  * Author: Fedi Nabli
  * Date: 25 Feb 2025
+ * Last Modified: 25 Feb 2025
  */
 
 #ifndef __BOOT_UART_H_
