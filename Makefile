@@ -52,7 +52,7 @@ all: directories kernel
 
 # Create build directories
 directories:
-	@mkdir -p $(BIN_DIR) $(BUILD_DIR) $(ARCH_BUILD_DIR)/boot $(ARCH_BUILD_DIR)/interrupt $(ARCH_BUILD_DIR)/uart $(CORE_BUILD_DIR)
+	@mkdir -p $(BIN_DIR) $(BUILD_DIR) $(ARCH_BUILD_DIR)/boot $(ARCH_BUILD_DIR)/interrupt $(ARCH_BUILD_DIR)/uart $(CORE_BUILD_DIR) $(CORE_BUILD_DIR)/memory $(CORE_BUILD_DIR)/memory/heap
 
 # Build subsystems
 arch:

@@ -10,5 +10,8 @@
 #define __SYNAPSE_STATUS_H_
 
 #define EOK 0 // No error
+#define EIO 1
+#define EINVARG 2
+#define ENOMEM 3
 
 #endif

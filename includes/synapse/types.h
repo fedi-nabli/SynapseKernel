@@ -9,6 +9,8 @@
 #ifndef __SYNAPSE_TYPES_H_
 #define __SYNAPSE_TYPES_H_
 
+#define NULL (void*)0
+
 /* Integer types */
 typedef unsigned char   uint8_t;
 typedef unsigned short  uint16_t;

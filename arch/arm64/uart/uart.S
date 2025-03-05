@@ -5,7 +5,7 @@
  *
  * Author: Fedi Nabli
  * Date: 26 Feb 2025
- * Last Modified: 26 Feb 2025
+ * Last Modified: 5 Feb 2025
  */
 
 /* UART base address */
