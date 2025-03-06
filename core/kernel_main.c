@@ -12,6 +12,58 @@
 #include <uart.h>
 #include <boot_info.h>
 
+#include <synapse/memory/heap/kheap.h>
+
+void test_heap(void) {
+  uart_send_string("---------- HEAP TEST ----------\n");
+  
+  // Allocate memory and display address info
+  uart_send_string("Allocating 4096 bytes...\n");
+  void* ptr = kmalloc(4096);
+  
+  // Convert and display address
+  char addr_str[20] = "0x";
+  char hex_chars[] = "0123456789ABCDEF";
+  unsigned long addr = (unsigned long)ptr;
+  int i = 2;
+  
+  for (int shift = 60; shift >= 0; shift -= 4) {
+    unsigned char digit = (addr >> shift) & 0xF;
+    if (digit != 0 || i > 2) {
+      addr_str[i++] = hex_chars[digit];
+    }
+  }
+  
+  if (i == 2) addr_str[i++] = '0';
+  addr_str[i] = '\0';
+  
+  if (ptr) {
+    uart_send_string("Allocation SUCCESS: ");
+    uart_send_string(addr_str);
+    uart_send_string("\n");
+    
+    // Debug checkpoint
+    uart_send_string("About to write to memory...\n");
+    
+    // Try writing just 1 byte first
+    *((unsigned char*)ptr) = 0x42;
+    
+    uart_send_string("Write successful!\n");
+    
+    // Debug checkpoint
+    uart_send_string("About to free memory...\n");
+    
+    // Try freeing
+    kfree(ptr);
+    
+    uart_send_string("Free successful!\n");
+  } else {
+    uart_send_string("Allocation FAILED: NULL pointer returned\n");
+  }
+  
+  uart_send_string("---------- TEST COMPLETE ----------\n");
+}
+
 void kernel_main(boot_info_t* boot_info)
 {
   // Initializes UART
@@ -31,6 +83,14 @@ void kernel_main(boot_info_t* boot_info)
   {
     uart_send_string("WARNING: Boot info invalid or missing\n");
   }
+
+  // Initialize the heap
+  uart_send_string("Initializing kernel heap...\n");
+  kheap_init(boot_info->ram_size);
+  uart_send_string("Heap initialized!\n");
+
+  // Run the heap test
+  test_heap();
 
   // Simple infinite loop
   uart_send_string("Kernel running (idle loop)...\n");

@@ -8,7 +8,7 @@ BUILD_DIR := ../build/core
 INCLUDES := -I../arch/arm64/includes -I../includes
 
 # Source files
-OBJ_FILES := $(BUILD_DIR)/kernel_main.o $(BUILD_DIR)/memory/memory.o $(BUILD_DIR)/memory/heap/heap.o
+OBJ_FILES := $(BUILD_DIR)/kernel_main.o $(BUILD_DIR)/memory/memory.o $(BUILD_DIR)/memory/heap/heap.o $(BUILD_DIR)/memory/heap/kheap.o
 
 # Compile flags
 CFLAGS += $(INCLUDES) -Wall -Wextra
@@ -31,6 +31,10 @@ $(BUILD_DIR)/memory/memory.o: memory/memory.c | $(BUILD_DIR)/memory
 # Compile memory heap file
 $(BUILD_DIR)/memory/heap/heap.o: memory/heap/heap.c | $(BUILD_DIR)/memory/heap
 	$(CC) $(CFLAGS) -I./memory/heap -c -o $(BUILD_DIR)/memory/heap/heap.o memory/heap/heap.c
+
+# Compile memory kernel heap file
+$(BUILD_DIR)/memory/heap/kheap.o: memory/heap/kheap.c | $(BUILD_DIR)/memory/heap
+	$(CC) $(CFLAGS) -I./memory/heap -I../includes/synapse/memory/heap -c -o $(BUILD_DIR)/memory/heap/kheap.o memory/heap/kheap.c
 
 # Clean build artifacts
 clean:

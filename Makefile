@@ -68,6 +68,9 @@ kernel: arch core
 		$(ARCH_BUILD_DIR)/boot/boot.o \
 		$(ARCH_BUILD_DIR)/interrupt/vector.o \
 		$(ARCH_BUILD_DIR)/uart/uart.o \
+		$(CORE_BUILD_DIR)/memory/memory.o \
+		$(CORE_BUILD_DIR)/memory/heap/heap.o \
+		$(CORE_BUILD_DIR)/memory/heap/kheap.o \
 		$(CORE_BUILD_DIR)/kernel_main.o
 	$(OBJCOPY) -O binary $(KERNEL_ELF) $(KERNEL_BIN)
 	$(OBJDUMP) -D $(KERNEL_ELF) > $(BUILD_DIR)/kernel.dump
