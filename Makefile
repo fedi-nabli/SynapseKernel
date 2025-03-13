@@ -68,6 +68,8 @@ kernel: arch core
 		$(ARCH_BUILD_DIR)/boot/boot.o \
 		$(ARCH_BUILD_DIR)/interrupt/vector.o \
 		$(ARCH_BUILD_DIR)/uart/uart.o \
+		$(ARCH_BUILD_DIR)/mmu/mmu.o \
+		$(ARCH_BUILD_DIR)/mmu/arm_mmu.o \
 		$(CORE_BUILD_DIR)/memory/memory.o \
 		$(CORE_BUILD_DIR)/memory/heap/heap.o \
 		$(CORE_BUILD_DIR)/memory/heap/kheap.o \
