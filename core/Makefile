@@ -8,7 +8,7 @@ BUILD_DIR := ../build/core
 INCLUDES := -I../arch/arm64/includes -I../includes
 
 # Source files
-OBJ_FILES := $(BUILD_DIR)/kernel_main.o $(BUILD_DIR)/memory/memory.o $(BUILD_DIR)/memory/heap/heap.o $(BUILD_DIR)/memory/heap/kheap.o
+OBJ_FILES := $(BUILD_DIR)/kernel_main.o $(BUILD_DIR)/mmu/mmu.o $(BUILD_DIR)/memory/memory.o $(BUILD_DIR)/memory/heap/heap.o $(BUILD_DIR)/memory/heap/kheap.o
 
 # Compile flags
 CFLAGS += $(INCLUDES) -Wall -Wextra
@@ -23,6 +23,10 @@ $(BUILD_DIR):
 # Compile C kernel main file
 $(BUILD_DIR)/kernel_main.o: kernel_main.c | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -c -o $(BUILD_DIR)/kernel_main.o kernel_main.c
+
+# Compile mmu file
+$(BUILD_DIR)/mmu/mmu.o: mmu/mmu.c | $(BUILD_DIR)/mmu
+	$(CC) $(CFLAGS) -c -o $(BUILD_DIR)/mmu/mmu.o mmu/mmu.c
 
 # Compile memory file
 $(BUILD_DIR)/memory/memory.o: memory/memory.c | $(BUILD_DIR)/memory
