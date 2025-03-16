@@ -65,7 +65,7 @@
 #define MAIR_NORMAL_WT        0xBB // Normal memory, Outer and Inner Write-Through, Read-Allocate
 #define MAIR_NORMAL_WB        0xFF // Normal memory, Outer and Inner Write-Back, Read_Allocate, Write-Allocate
 
-/*  */
+/* Memory indices for use with MAIR_EL1 */
 #define MEMORY_ATTR_DEVICE_nGnRnE   0 // Device memory non-Gathering, non-Recording, no Early write acknowledgement
 #define MEMORY_ATTR_DEVICE_nGnRE    1 // Device memory non-Gathering, non-Recording, Early write acknowledgement
 #define MEMORY_ATTR_DEVICE_GRE      2 // Device memory Gathering, Recording, Early write acknowledgement
