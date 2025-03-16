@@ -1,3 +1,15 @@
+/*
+ * mmu.c - This files implements kernel MMU functionalities
+ * 
+ * The functions are meant to control the MMU and
+ * be architecture-independant
+ * 
+ * Author: Fedi Nabli
+ * Date: 13 Mar 2025
+ * Last Modified: 14 Mar 2025
+*/
+
+
 #include <uart.h>
 #include <arm_mmu.h>
 

@@ -1,3 +1,14 @@
+/*
+ * mmu.h - This files defines kernel MMU functionalities
+ * 
+ * The functions are meant to control the MMU and
+ * be architecture-independant
+ * 
+ * Author: Fedi Nabli
+ * Date: 12 Mar 2025
+ * Last Modified: 14 Mar 2025
+*/
+
 #ifndef __KERNEL_MMU_H_
 #define __KERNEL_MMU_H_
 
