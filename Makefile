@@ -1,7 +1,7 @@
 # Main Kernel Makefile
 # Author: Fedi Nabli
 # Date: 26 Feb 2025
-# Last Modified: 27 Feb 2025
+# Last Modified: 17 Mar 2025
 
 # Toolchain definitions for aarch64-linux-gnu
 CROSS_COMPILE ?= aarch64-linux-gnu-
@@ -52,7 +52,7 @@ all: directories kernel
 
 # Create build directories
 directories:
-	@mkdir -p $(BIN_DIR) $(BUILD_DIR) $(ARCH_BUILD_DIR)/boot $(ARCH_BUILD_DIR)/interrupt $(ARCH_BUILD_DIR)/uart $(CORE_BUILD_DIR) $(CORE_BUILD_DIR)/mmu $(CORE_BUILD_DIR)/memory $(CORE_BUILD_DIR)/memory/heap
+	@mkdir -p $(BIN_DIR) $(BUILD_DIR) $(ARCH_BUILD_DIR)/boot $(ARCH_BUILD_DIR)/interrupt $(ARCH_BUILD_DIR)/uart $(CORE_BUILD_DIR) $(CORE_BUILD_DIR)/mmu $(CORE_BUILD_DIR)/memory $(CORE_BUILD_DIR)/memory/heap $(CORE_BUILD_DIR)/memory/paging
 
 # Build subsystems
 arch:
@@ -74,6 +74,7 @@ kernel: arch core
 		$(CORE_BUILD_DIR)/memory/memory.o \
 		$(CORE_BUILD_DIR)/memory/heap/heap.o \
 		$(CORE_BUILD_DIR)/memory/heap/kheap.o \
+		$(CORE_BUILD_DIR)/memory/paging/paging.o \
 		$(CORE_BUILD_DIR)/kernel_main.o
 	$(OBJCOPY) -O binary $(KERNEL_ELF) $(KERNEL_BIN)
 	$(OBJDUMP) -D $(KERNEL_ELF) > $(BUILD_DIR)/kernel.dump

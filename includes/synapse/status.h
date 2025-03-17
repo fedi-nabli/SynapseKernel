@@ -15,5 +15,7 @@
 #define ENOMEM 3
 #define EMMU 4
 #define ENOMAP 5
+#define EINVAL 6
+#define ENOTREADY 7
 
 #endif

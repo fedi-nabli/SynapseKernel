@@ -101,7 +101,7 @@ void mmu_setup_initial_mappings();
  * @return 0 on success, non-zero on failure
  * 
  * @author Fedi Nabli
- * @date 14 Mar 2025
+ * @date 14 Mar 2025 - Modified 17 Mar 2025
  */
 int mmu_map(uint64_t vaddr, uint64_t paddr, uint64_t size, uint64_t attrs);
 
@@ -113,8 +113,19 @@ int mmu_map(uint64_t vaddr, uint64_t paddr, uint64_t size, uint64_t attrs);
  * @return 0 on success, non-zero on failure
  * 
  * @author Fedi Nabli
- * @date 14 Mar 2025
+ * @date 14 Mar 2025 - Modified 17 Mar 2025
  */
 int mmu_unmap(uint64_t vaddr, uint64_t size);
+
+/**
+ * @brief Get the Physical address for a virtual address
+ * 
+ * @param vaddr Virtual address to translate
+ * @return uint64_t Physical address, or 0 if not mapped
+ * 
+ * @author Fedi Nabli
+ * @date 17 Mar 2025
+ */
+uint64_t mmu_virt_to_phys(uint64_t vaddr);
 
 #endif
