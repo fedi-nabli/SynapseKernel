@@ -17,5 +17,6 @@
 #define ENOMAP 5
 #define EINVAL 6
 #define ENOTREADY 7
+#define EFAULT 8
 
 #endif

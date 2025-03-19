@@ -71,6 +71,7 @@ kernel: arch core
 		$(ARCH_BUILD_DIR)/mmu/mmu.o \
 		$(ARCH_BUILD_DIR)/mmu/arm_mmu.o \
 		$(CORE_BUILD_DIR)/memory/memory.o \
+		$(CORE_BUILD_DIR)/mmu/kernel_mmu.o \
 		$(CORE_BUILD_DIR)/memory/heap/heap.o \
 		$(CORE_BUILD_DIR)/memory/heap/kheap.o \
 		$(CORE_BUILD_DIR)/kernel_main.o
