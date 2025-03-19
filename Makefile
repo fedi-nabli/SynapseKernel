@@ -70,11 +70,9 @@ kernel: arch core
 		$(ARCH_BUILD_DIR)/uart/uart.o \
 		$(ARCH_BUILD_DIR)/mmu/mmu.o \
 		$(ARCH_BUILD_DIR)/mmu/arm_mmu.o \
-		$(CORE_BUILD_DIR)/mmu/mmu.o \
 		$(CORE_BUILD_DIR)/memory/memory.o \
 		$(CORE_BUILD_DIR)/memory/heap/heap.o \
 		$(CORE_BUILD_DIR)/memory/heap/kheap.o \
-		$(CORE_BUILD_DIR)/memory/paging/paging.o \
 		$(CORE_BUILD_DIR)/kernel_main.o
 	$(OBJCOPY) -O binary $(KERNEL_ELF) $(KERNEL_BIN)
 	$(OBJDUMP) -D $(KERNEL_ELF) > $(BUILD_DIR)/kernel.dump

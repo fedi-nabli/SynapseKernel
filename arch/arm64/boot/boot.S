@@ -23,6 +23,7 @@ boot_second_stage:
 
   // Configure system registers
   mrs x0, sctlr_el1 // System Control Register
+  bic x0, x0, #(1 << 0) // Clear M bit (MMU) - ensure it's disabled initially
   bic x0, x0, #(1 << 1) // Clear A bit (alignment check)
   orr x0, x0, #(1 << 12) // Enable I-cache
   orr x0, x0, #(1 << 2) // Enable D-cache
