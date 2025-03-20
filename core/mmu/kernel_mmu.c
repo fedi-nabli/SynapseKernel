@@ -17,6 +17,7 @@
 
 #include <synapse/memory/memory.h>
 #include <synapse/memory/heap/kheap.h>
+#include <synapse/memory/paging/paging.h>
 
 // Page table pointers
 static uint64_t* kernel_pgd = NULL; // Page Global directory
