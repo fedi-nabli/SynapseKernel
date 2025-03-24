@@ -9,8 +9,42 @@
  * Last Modified: 13 Mar 2025
 */
 
+#include <uart.h>
+
 #include <arm_mmu.h>
 #include <synapse/types.h>
+
+// Temporary buffer for early boot string operations
+static char temp_str_buffer[32];
+
+// Convert a number to a string for UART output
+static char* uint_to_str(uint64_t value)
+{
+  int i = 0;
+  char* p = temp_str_buffer;
+
+  do
+  {
+    temp_str_buffer[i++] = '0' + (value % 10);
+    value /= 10;
+  } while (value > 0 && i < 31);
+
+  temp_str_buffer[i] = '\0';
+
+  // Reverse the string
+  int j = 0;
+  i--;
+  while (j < i)
+  {
+    char temp = p[j];
+    p[j] = p[i];
+    p[i] = temp;
+    j++;
+    i--;
+  }
+
+  return temp_str_buffer;
+}
 
 /**
  * @brief Configure System Control Register (SCTLR_EL1)
@@ -25,19 +59,20 @@ void configure_sctlr_el1()
 {
   uint64_t sctlr = read_sctlr_el1();
 
-  // First, clear bits we want to modify explicitly
-  sctlr &= ~(SCTLR_EL1_M | SCTLR_EL1_A | SCTLR_EL1_C | SCTLR_EL1_I |
-              SCTLR_EL1_WXN | SCTLR_EL1_SA | SCTLR_EL1_SA0);
+  // Clear all bits first
+  sctlr = 0;
 
-  // Now we set the desired configuration
-  // We're not enabling MMU (SCTLR_EL1_M) here; it will be enabled later
-  sctlr |= SCTLR_EL1_C; // Enable data cache
-  sctlr |= SCTLR_EL1_I; // Enable instruction cache
-  sctlr |= SCTLR_EL1_SA; // Enable stack alignment check for EL1
-  sctlr |= SCTLR_EL1_SA0; // Enable stack alignment check for EL0
+  // Set mandatory RES1 bits
+  sctlr |= (1 << 11) | (1 << 20) | (1 << 22) | (1 << 28) | (1 << 29);
 
-  // Write the new value back to SCTLR_EL1
+  // Write and verify
   write_sctlr_el1(sctlr);
+  uint64_t check = read_sctlr_el1();
+  uart_send_string("SCTLR_EL1 wrote: 0x");
+  uart_send_string(uint_to_str(sctlr));
+  uart_send_string("\nSCTLR_EL1 read: 0x");
+  uart_send_string(uint_to_str(check));
+  uart_send_string("\n");
 }
 
 /**
@@ -51,36 +86,37 @@ void configure_sctlr_el1()
  */
 void configure_tcr_el1()
 {
+  // Start with 0
   uint64_t tcr = 0;
 
-  // Configure address space size
-  // T0SZ and T1SZ determine the size of the virtual address space
-  // For a 48-bit VA space (common in ARMv8), use 64 - 48 = 16
-  tcr |= (16UL << TCR_EL1_T0SZ_SHIFT); // TTBR0 covers 48-bit VA (user space)
-  tcr |= (16UL << TCR_EL1_T1SZ_SHIFT); // TTBR1 covers 48-bit VA (kernel space)
+  // Expected value for 48-bit VA:
+  // 0x00000000B5193519
+  
+  // Bits for TTBR0_EL1 (low addresses)
+  tcr |= (64 - 48);    // T0SZ=16, for 48-bit
+  tcr |= (1 << 8);     // IRGN0=1, WB WA
+  tcr |= (1 << 10);    // ORGN0=1, WB WA
+  tcr |= (3 << 12);    // SH0=3, Inner
+  tcr |= (0 << 14);    // TG0=0, 4KB
 
-  // Configure granule size
-  tcr |= (TCR_TG0_4K << TCR_EL1_TG0_SHIFT); // 4KB page for TTBR0
-  tcr |= (TCR_TG1_4K << TCR_El1_TG1_SHIFT); // 4KB page for TTBR1
+  // Bits for TTBR1_EL1 (high addresses)
+  tcr |= (64 - 48) << 16; // T1SZ=16, for 48-bit
+  tcr |= (1 << 24);    // IRGN1=1, WB WA
+  tcr |= (1 << 26);    // ORGN1=1, WB WA
+  tcr |= (3 << 28);    // SH1=3, Inner
+  tcr |= (2ULL << 30); // TG1=2, 4KB
 
-  // Configure cacheability of translation table walks
-  // Inner cacheability
-  tcr |= (TCR_IRGN_WBWA << TCR_EL1_IRGN0_SHIFT); // TTBR0 walks are write-back, read/write allocate
-  tcr |= (TCR_IRGN_WBWA << TCR_EL1_IRGN1_SHIFT); // TTBR1 walks are write-back, read/write allocate
+  // Physical Address Size
+  tcr |= (2ULL << 32); // IPS=2, 40-bit PA
 
-  // Outer cacheability
-  tcr |= (TCR_ORGN_WBWA << TCR_EL1_ORGN0_SHIFT); // TTBR0 walks are write-back, read/write allocate
-  tcr |= (TCR_ORGN_WBWA << TCR_EL1_ORGN1_SHIFT); // TTBR1 walks are write-back, read/write allocate
-
-  // Configure shearability of tranlation table walks
-  tcr |= (TCR_SH_INNER << TCR_EL1_SH0_SHIFT); // TTBR0 walks are inner shearable
-  tcr |= (TCR_SH_INNER << TCR_EL1_SH1_SHIFT); // TTBR1 walks are inner shearable
-
-  // Configure physical address size (IPS)
-  tcr |= ((uint64_t)TCR_IPS_40BITS << 32ULL);
-
-  // Write to TCR_EL1 register
+  // Write and verify
   write_tcr_el1(tcr);
+  uint64_t check = read_tcr_el1();
+  uart_send_string("TCR_EL1 wrote: 0x");
+  uart_send_string(uint_to_str(tcr));
+  uart_send_string("\nTCR_EL1 read: 0x");
+  uart_send_string(uint_to_str(check));
+  uart_send_string("\n");
 }
 
 /**
@@ -94,16 +130,27 @@ void configure_tcr_el1()
  */
 void configure_mair_el1()
 {
+  // Expected: 0xFF44040400
   uint64_t mair = 0;
 
-  // Configure memory attributes for different kinds of memory
-  mair |= MAIR_ATTR(MEMORY_ATTR_DEVICE_nGnRnE, MAIR_DEVICE_nGnRnE); // Device memory (stringly ordered, non gathering, no reordering)
-  mair |= MAIR_ATTR(MEMORY_ATTR_DEVICE_nGnRE, MAIR_DEVICE_nGnRE); // Device memory (with early write back)
-  mair |= MAIR_ATTR(MEMORY_ATTR_DEVICE_GRE, MAIR_DEVICE_GRE);
-  mair |= MAIR_ATTR(MEMORY_ATTR_NORMAL_NC, MAIR_NORMAL_NC); // Normal memory, non-cacheable
-  mair |= MAIR_ATTR(MEMORY_ATTR_NORMAL_WT, MAIR_NORMAL_WT); // Normal memory, write-through
-  mair |= MAIR_ATTR(MEMORY_ATTR_NORMAL_WB, MAIR_NORMAL_WB); // Normal memory, write-back
+  // Index 0: Normal memory, Write-Back
+  mair |= 0xFFULL << (8 * 0);  // Normal WB RW WA
 
-  // Write the MAIR_EL1 register
+  // Index 1: Device-nGnRnE
+  mair |= 0x00ULL << (8 * 1);  // Device
+
+  // Index 2: Device-nGnRE
+  mair |= 0x04ULL << (8 * 2);  // Device with early ack
+
+  // Index 3: Normal NC
+  mair |= 0x44ULL << (8 * 3);  // Normal NC
+
+  // Write and verify
   write_mair_el1(mair);
+  uint64_t check = read_mair_el1();
+  uart_send_string("MAIR_EL1 wrote: 0x");
+  uart_send_string(uint_to_str(mair));
+  uart_send_string("\nMAIR_EL1 read: 0x");
+  uart_send_string(uint_to_str(check));
+  uart_send_string("\n");
 }

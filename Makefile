@@ -76,6 +76,7 @@ kernel: arch core
 		$(CORE_BUILD_DIR)/memory/heap/kheap.o \
 		$(CORE_BUILD_DIR)/memory/paging/paging.o \
 		$(CORE_BUILD_DIR)/memory/ai_memory/ai_memory.o \
+		$(CORE_BUILD_DIR)/memory/memory_system.o \
 		$(CORE_BUILD_DIR)/kernel_main.o
 	$(OBJCOPY) -O binary $(KERNEL_ELF) $(KERNEL_BIN)
 	$(OBJDUMP) -D $(KERNEL_ELF) > $(BUILD_DIR)/kernel.dump

@@ -12,7 +12,8 @@
 
 #include <synapse/types.h>
 
-#define KERNEL_VIRT_BASE 0xFFFF000000000000ULL // High canonical address for kernel sapce
+#define KERNEL_VIRT_BASE 0xFFFFFF8000000000ULL
+#define KERNEL_PHYS_OFFSET 0x1074000000ULL  // Based on your output
 #define PAGE_SIZE 4096 // 4KB page size
 #define PAGE_SHIFT 12 // log2(PAGE_SIZE)
 

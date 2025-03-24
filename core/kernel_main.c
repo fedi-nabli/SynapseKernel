@@ -12,7 +12,44 @@
 #include <uart.h>
 #include <boot_info.h>
 
-#include <synapse/memory/heap/kheap.h>
+#include <synapse/memory/memory_system.h>
+
+// Define the kernel start and end symbols from the linker
+extern char _start[];
+extern char _end[];
+
+static void uint_to_str(uint64_t value, char* buf, size_t size)
+{
+  if (!buf || size == 0)
+  {
+    return;
+  }
+  
+  // Handle zero case
+  if (value == 0)
+  {
+    buf[0] = '0';
+    buf[1] = '\0';
+    return;
+  }
+  
+  // Convert digits
+  size_t i = 0;
+  while (value > 0 && i < size - 1)
+  {
+    buf[i++] = '0' + (value % 10);
+    value /= 10;
+  }
+  buf[i] = '\0';
+  
+  // Reverse the string
+  for (size_t j = 0; j < i / 2; j++)
+  {
+    char temp = buf[j];
+    buf[j] = buf[i - j - 1];
+    buf[i - j - 1] = temp;
+  }
+}
 
 void kernel_main(boot_info_t* boot_info)
 {
@@ -26,18 +63,31 @@ void kernel_main(boot_info_t* boot_info)
   if (boot_info && boot_info->magic == BOOT_INFO_MAGIC)
   {
     uart_send_string("Boot info verified. System details:\n");
-    // TODO: Implement number to string function
-    uart_send_string("- RAM detected\n");
+    uart_send_string("- RAM: ");
+    char buffer[32];
+    uint_to_str(boot_info->ram_size / (1024 * 1024), buffer, sizeof(buffer));
+    uart_send_string(buffer);
+    uart_send_string(" MB\n");
   }
   else
   {
     uart_send_string("WARNING: Boot info invalid or missing\n");
   }
 
-  // Initialize the heap
-  uart_send_string("Initializing kernel heap...\n");
-  kheap_init(boot_info->ram_size);
-  uart_send_string("Heap initialized!\n");
+  // Get kernel addresses
+  uintptr_t kernel_start = (uintptr_t)&_start;
+  uintptr_t kernel_end = (uintptr_t)&_end;
+
+  // Initialize the memory system
+  uart_send_string("Initializing memory system...\n");
+  int res = memory_system_init(boot_info->ram_size, kernel_start, kernel_end);
+  if (res < 0)
+  {
+    uart_send_string("Memory system initialization failed!\n");
+    while (1) {} // Halt
+  }
+
+  
 
   // Simple infinite loop
   uart_send_string("Kernel running (idle loop)...\n");

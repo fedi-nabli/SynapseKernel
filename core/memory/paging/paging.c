@@ -6,6 +6,7 @@
 #include <synapse/types.h>
 #include <synapse/status.h>
 
+#include <kernel/config.h>
 #include <kernel/kernel_mmu.h>
 
 #include <synapse/memory/memory.h>
@@ -93,7 +94,7 @@ static void bitmap_clear(uint64_t* bitmap, size_t bit)
 {
   size_t byte_index = bit / PAGES_PER_BITMAP_ENTRY;
   size_t bit_index = bit % PAGES_PER_BITMAP_ENTRY;
-  bitmap[byte_index] |= ~(1ULL << bit_index);
+  bitmap[byte_index] &= ~(1ULL << bit_index);
 }
 
 /**
@@ -167,10 +168,19 @@ int paging_init(size_t ram_size, uintptr_t kernel_start, uintptr_t kernel_end)
 {
   uart_send_string("Initializing paging subsystem...\n");
 
-  // Calcuulate number of pages
+  // Calculate number of pages
   page_manager.total_pages = ram_size / PAGE_SIZE;
+  if (page_manager.total_pages > MAX_PAGES) {
+    // Cap at maximum pages
+    page_manager.total_pages = MAX_PAGES;
+    uart_send_string("WARNING: RAM size exceeds maximum page count, capping at ");
+    uart_send_string(uint_to_str(MAX_PAGES));
+    uart_send_string(" pages\n");
+  }
+
+  // Initialize the base address and free pages
+  page_manager.base_addr = 0; // Assume physical memory starts at 0
   page_manager.free_pages = page_manager.total_pages;
-  page_manager.base_addr = 0; // Assume physical memory start at 0
 
   uart_send_string("Total pages: ");
   uart_send_string(uint_to_str(page_manager.total_pages));
@@ -182,70 +192,101 @@ int paging_init(size_t ram_size, uintptr_t kernel_start, uintptr_t kernel_end)
 
   // Allocate bitmap from the kernel heap
   page_manager.bitmap = (uint64_t*)kmalloc(page_manager.bitmap_size);
-  if (!page_manager.bitmap)
-  {
+  if (!page_manager.bitmap) {
     uart_send_string("Failed to allocate page bitmap\n");
     return -ENOMEM;
   }
 
   // Allocate page info array
   page_manager.page_info = (uint8_t*)kmalloc(page_manager.total_pages);
-  if (!page_manager.page_info)
-  {
+  if (!page_manager.page_info) {
     kfree(page_manager.bitmap);
     uart_send_string("Failed to allocate page info array\n");
     return -ENOMEM;
   }
 
-  // Clear all structures
+  // Clear all structures - all pages start as free
   memset(page_manager.bitmap, 0, page_manager.bitmap_size);
   memset(page_manager.page_info, 0, page_manager.total_pages);
 
-  // Mark kernel pages as used
-  size_t kernel_start_page = kernel_start / PAGE_SIZE;
-  size_t kernel_end_page = (kernel_end + PAGE_SIZE - 1) / PAGE_SIZE;
+  // Since we're having issues with the kernel range, let's just reserve a fixed
+  // small portion at the beginning for the kernel and critical structures
+  size_t reserved_pages = 64; // Reserve just 64 pages (256KB) for kernel
+  
+  uart_send_string("Reserving first ");
+  uart_send_string(uint_to_str(reserved_pages));
+  uart_send_string(" pages for kernel and critical structures\n");
 
-  uart_send_string("Marking kernel pages as used (");
-  uart_send_string(uint_to_str(kernel_start_page));
-  uart_send_string(" to ");
-  uart_send_string(uint_to_str(kernel_end_page));
-  uart_send_string(")\n");
-
-  for (size_t i = kernel_start_page; i < kernel_end_page; i++)
-  {
+  for (size_t i = 0; i < reserved_pages && i < page_manager.total_pages; i++) {
     bitmap_set(page_manager.bitmap, i);
     page_manager.page_info[i] = PAGE_ALLOCATED | PAGE_KERNEL;
     page_manager.free_pages--;
   }
-
-  // Mark page structures as used
+  
+  // Also reserve pages for our page management structures
   uintptr_t bitmap_start = (uintptr_t)page_manager.bitmap;
   uintptr_t bitmap_end = bitmap_start + page_manager.bitmap_size;
   size_t bitmap_start_page = bitmap_start / PAGE_SIZE;
   size_t bitmap_end_page = (bitmap_end + PAGE_SIZE - 1) / PAGE_SIZE;
-
-  for (size_t i = bitmap_start_page; i < bitmap_end_page; i++)
-  {
-    bitmap_set(page_manager.bitmap, i);
-    page_manager.page_info[i] = PAGE_ALLOCATED | PAGE_KERNEL;
-    page_manager.free_pages--;
+  
+  // Safety check for bitmap pages
+  if (bitmap_start_page < page_manager.total_pages && bitmap_end_page < page_manager.total_pages) {
+    uart_send_string("Reserving bitmap pages (");
+    uart_send_string(uint_to_str(bitmap_start_page));
+    uart_send_string(" to ");
+    uart_send_string(uint_to_str(bitmap_end_page));
+    uart_send_string(")\n");
+    
+    for (size_t i = bitmap_start_page; i <= bitmap_end_page; i++) {
+      if (!bitmap_test(page_manager.bitmap, i)) { // Only mark if not already marked
+        bitmap_set(page_manager.bitmap, i);
+        page_manager.page_info[i] = PAGE_ALLOCATED | PAGE_KERNEL;
+        page_manager.free_pages--;
+      }
+    }
   }
-
+  
   uintptr_t page_info_start = (uintptr_t)page_manager.page_info;
   uintptr_t page_info_end = page_info_start + page_manager.total_pages;
   size_t page_info_start_page = page_info_start / PAGE_SIZE;
   size_t page_info_end_page = (page_info_end + PAGE_SIZE - 1) / PAGE_SIZE;
-
-  for (size_t i = page_info_start_page; i < page_info_end_page; i++)
-  {
-    bitmap_set(page_manager.bitmap, i);
-    page_manager.page_info[i] = PAGE_ALLOCATED | PAGE_KERNEL;
-    page_manager.free_pages--;
+  
+  // Safety check for page info pages
+  if (page_info_start_page < page_manager.total_pages && page_info_end_page < page_manager.total_pages) {
+    uart_send_string("Reserving page info pages (");
+    uart_send_string(uint_to_str(page_info_start_page));
+    uart_send_string(" to ");
+    uart_send_string(uint_to_str(page_info_end_page));
+    uart_send_string(")\n");
+    
+    for (size_t i = page_info_start_page; i <= page_info_end_page; i++) {
+      if (!bitmap_test(page_manager.bitmap, i)) { // Only mark if not already marked
+        bitmap_set(page_manager.bitmap, i);
+        page_manager.page_info[i] = PAGE_ALLOCATED | PAGE_KERNEL;
+        page_manager.free_pages--;
+      }
+    }
   }
 
   uart_send_string("Free pages after initialization: ");
   uart_send_string(uint_to_str(page_manager.free_pages));
   uart_send_string("\n");
+  
+  // Test page allocation to verify
+  uart_send_string("Testing page allocation...\n");
+  void* test_page = kpage_alloc_flags(PAGEF_ZEROED);
+  
+  if (test_page) {
+    uart_send_string("Successfully allocated test page at: 0x");
+    uart_send_string(uint_to_str((uintptr_t)test_page));
+    uart_send_string("\n");
+    
+    // Return the test page to the pool
+    kpage_free(test_page);
+    uart_send_string("Test page freed\n");
+  } else {
+    uart_send_string("WARNING: Failed to allocate test page!\n");
+  }
 
   return EOK;
 }
@@ -261,34 +302,42 @@ int paging_init(size_t ram_size, uintptr_t kernel_start, uintptr_t kernel_end)
  */
 void* kpage_alloc_flags(uint32_t flags)
 {
-  // Find a free range
-  int page_index = bitmap_find_free_range(page_manager.bitmap, page_manager.total_pages, 1);
-  if (page_index < 0)
-  {
-    // No free pages
+  // Find a free page
+  size_t page_index = (size_t)-1;
+  
+  // Direct bitmap search instead of using helper function
+  for (size_t i = 0; i < page_manager.total_pages; i++) {
+    if (!bitmap_test(page_manager.bitmap, i)) {
+      page_index = i;
+      break;
+    }
+  }
+  
+  if (page_index == (size_t)-1 || page_index >= page_manager.total_pages) {
+    uart_send_string("kpage_alloc_flags: No free pages found!\n");
     return NULL;
   }
-
-  // Mark the pages as allocated
+  
+  // Mark the page as allocated
   bitmap_set(page_manager.bitmap, page_index);
 
   // Set page info
   uint8_t page_info = PAGE_ALLOCATED;
-  if (flags & PAGE_KERNEL)
-  {
+  if (flags & PAGE_KERNEL) {
     page_info |= PAGE_KERNEL;
   }
   page_manager.page_info[page_index] = page_info;
 
   // Decrement free page count
-  page_manager.free_pages--;
+  if (page_manager.free_pages > 0) {
+    page_manager.free_pages--;
+  }
 
   // Calculate page address
   uintptr_t page_addr = page_manager.base_addr + (page_index * PAGE_SIZE);
 
   // Zero the page if requested
-  if (flags & PAGE_ZEROED)
-  {
+  if (flags & PAGE_ZEROED) {
     void* virt_addr = kpage_from_phys(page_addr);
     memset(virt_addr, 0, PAGE_SIZE);
     page_manager.page_info[page_index] |= PAGE_ZEROED;

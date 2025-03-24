@@ -25,6 +25,8 @@
 .global dsb_sy
 .global isb_sy
 
+.global enable_mmu_assembly
+
 // function to read SCTLR_EL1 (System Control Register)
 // uint64_t read_sctlr_el1(void);
 read_sctlr_el1:
@@ -124,4 +126,54 @@ dsb_sy:
 // void isb_sy(void)
 isb_sy:
   isb
+  ret
+
+// Function to safely enable the MMU
+// void enable_mmu_assembly(uint64_t ttbr0, uint64_t ttbr1);
+enable_mmu_assembly:
+  // Save registers
+  stp x29, x30, [sp, #-16]!
+  mov x29, sp
+  
+  // Save TTBR values
+  mov x2, x0      // ttbr0
+  mov x3, x1      // ttbr1
+
+  // Ensure TLBs are clear
+  tlbi vmalle1is
+  dsb ish
+  isb
+
+  // Get post-MMU address
+  adr x4, mmu_enabled_return
+
+  // Prepare SCTLR_EL1 value
+  mrs x0, sctlr_el1
+  mov x1, #1      // MMU enable
+  orr x1, x1, #(1 << 2)    // C bit
+  orr x1, x1, #(1 << 12)   // I bit
+  orr x0, x0, x1 
+  
+  // Enable MMU
+  dsb sy          // Ensure all prior changes complete
+  msr sctlr_el1, x0
+  isb             // Flush pipeline
+
+  // Jump to virtual address
+  br x4
+
+mmu_enabled_return:
+  // Verify MMU enabled
+  mrs x0, sctlr_el1
+  and x0, x0, #1
+  cbnz x0, 1f    // Check if MMU is on
+
+  // MMU failed to enable
+  mov x0, #-1
+  ret
+
+1:  // MMU enabled successfully
+  mov x0, #0
+  // Restore registers
+  ldp x29, x30, [sp], #16
   ret

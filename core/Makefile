@@ -8,7 +8,7 @@ BUILD_DIR := ../build/core
 INCLUDES := -I../arch/arm64/includes -I../includes
 
 # Source files
-OBJ_FILES := $(BUILD_DIR)/kernel_main.o $(BUILD_DIR)/memory/memory.o $(BUILD_DIR)/mmu/kernel_mmu.o $(BUILD_DIR)/memory/heap/heap.o $(BUILD_DIR)/memory/heap/kheap.o $(BUILD_DIR)/memory/paging/paging.o $(BUILD_DIR)/memory/ai_memory/ai_memory.o
+OBJ_FILES := $(BUILD_DIR)/kernel_main.o $(BUILD_DIR)/memory/memory.o $(BUILD_DIR)/mmu/kernel_mmu.o $(BUILD_DIR)/memory/heap/heap.o $(BUILD_DIR)/memory/heap/kheap.o $(BUILD_DIR)/memory/paging/paging.o $(BUILD_DIR)/memory/ai_memory/ai_memory.o $(BUILD_DIR)/memory/memory_system.o
 
 # Compile flags
 CFLAGS += $(INCLUDES) -Wall -Wextra
@@ -47,6 +47,10 @@ $(BUILD_DIR)/memory/paging/paging.o: memory/paging/paging.c | $(BUILD_DIR)/memor
 # Compile memory ai memory file
 $(BUILD_DIR)/memory/ai_memory/ai_memory.o: memory/ai_memory/ai_memory.c | $(BUILD_DIR)/memory/ai_memory
 	$(CC) $(CFLAGS) -I../includes/synapse/memory/ai_memory -c -o $(BUILD_DIR)/memory/ai_memory/ai_memory.o memory/ai_memory/ai_memory.c
+
+# Compile memory system file
+$(BUILD_DIR)/memory/memory_system.o: memory/memory_system.c | $(BUILD_DIR)/memory
+	$(CC) $(CFLAGS) -I../includes/synapse/memory -c -o $(BUILD_DIR)/memory/memory_system.o memory/memory_system.c
 
 # Clean build artifacts
 clean:

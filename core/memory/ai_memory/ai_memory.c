@@ -497,90 +497,152 @@ static int ai_memory_free(void* ptr)
  */
 int ai_memory_init(size_t pool_size)
 {
+  // Start with a more reasonable pool size - 1 MB
+  size_t requested_pool_size = 1 * 1024 * 1024; // 1 MB
+  
   uart_send_string("Initializing AI memory subsystem with ");
-  uart_send_string(uint_to_str(pool_size / 1024));
+  uart_send_string(uint_to_str(requested_pool_size / 1024));
   uart_send_string(" KB pool...\n");
 
   // Clean pool structure
   memset(&ai_mem_pool, 0, sizeof(ai_memory_pool_t));
+  ai_mem_pool.total_size = requested_pool_size;
 
-  // Initialize pool parameters
-  ai_mem_pool.total_size = pool_size;
-
-  // Allocat free block array
+  // Allocate management structures
   ai_mem_pool.free_blocks = (void**)kmalloc(AI_MEMORY_MAX_BLOCKS * sizeof(void*));
-  if (!ai_mem_pool.free_blocks)
-  {
+  if (!ai_mem_pool.free_blocks) {
     uart_send_string("Failed to allocate free block array\n");
     return -ENOMEM;
   }
 
   ai_mem_pool.free_block_sizes = (size_t*)kmalloc(AI_MEMORY_MAX_BLOCKS * sizeof(size_t));
-  if (!ai_mem_pool.free_block_sizes)
-  {
-    kfree(ai_mem_pool.free_block_sizes);
+  if (!ai_mem_pool.free_block_sizes) {
+    kfree(ai_mem_pool.free_blocks);
     uart_send_string("Failed to allocate free block sizes array\n");
     return -ENOMEM;
   }
 
-  // Allocate initial small block pool (1/4 of total pool)
-  size_t small_pool_size = pool_size / 4;
-  small_pool_size = (small_pool_size / PAGE_SIZE) * PAGE_SIZE; // Align to page size
+  // Calculate small block pool size (1/4 of total)
+  size_t small_pool_size = requested_pool_size / 4; 
+  small_pool_size = (small_pool_size / PAGE_SIZE) * PAGE_SIZE;
 
+  uart_send_string("Small block pool size: ");
+  uart_send_string(uint_to_str(small_pool_size / 1024));
+  uart_send_string(" KB\n");
+
+  // Setup small block management
   ai_mem_pool.small_block_count = small_pool_size / AI_MEMORY_MIN_BLOCK_SIZE;
   size_t bitmap_size = (ai_mem_pool.small_block_count + 63) / 64 * sizeof(uint64_t);
 
-  // Allocate small block bitmap
   ai_mem_pool.small_block_bitmap = (uint64_t*)kmalloc(bitmap_size);
-  if (!ai_mem_pool.small_block_bitmap)
-  {
+  if (!ai_mem_pool.small_block_bitmap) {
     kfree(ai_mem_pool.free_block_sizes);
     kfree(ai_mem_pool.free_blocks);
     uart_send_string("Failed to allocate small block bitmap\n");
     return -ENOMEM;
   }
 
-  // Clear the bitmap (all blocks free)
+  // Clear bitmap
   memset(ai_mem_pool.small_block_bitmap, 0, bitmap_size);
-
-  // Allocate the small block pool
-  ai_mem_pool.small_block_pool = kpage_alloc_contiguous(small_pool_size / PAGE_SIZE, PAGEF_ZEROED);
-  if (!ai_mem_pool.small_block_pool)
-  {
-    kfree(ai_mem_pool.small_block_bitmap);
-    kfree(ai_mem_pool.free_block_sizes);
-    kfree(ai_mem_pool.free_blocks);
-    uart_send_string("Failed to allocate small block pool\n");
-    return -ENOMEM;
+  
+  // Calculate number of pages needed
+  size_t pages_needed = small_pool_size / PAGE_SIZE;
+  uart_send_string("Allocating ");
+  uart_send_string(uint_to_str(pages_needed));
+  uart_send_string(" pages for small block pool...\n");
+  
+  // Try contiguous allocation first
+  void* memory = kpage_alloc_contiguous(pages_needed, PAGEF_ZEROED);
+  
+  if (!memory) {
+    // Fall back to allocating individual pages
+    uart_send_string("Contiguous allocation failed, trying individual pages...\n");
+    
+    // Allocate pages individually and track them in free blocks
+    size_t pages_allocated = 0;
+    
+    for (size_t i = 0; i < pages_needed && i < AI_MEMORY_MAX_BLOCKS; i++) {
+      void* page = kpage_alloc_flags(PAGEF_ZEROED);
+      if (page) {
+        // Add to free blocks list
+        ai_mem_pool.free_blocks[ai_mem_pool.free_block_count] = page;
+        ai_mem_pool.free_block_sizes[ai_mem_pool.free_block_count] = PAGE_SIZE;
+        ai_mem_pool.free_block_count++;
+        pages_allocated++;
+        
+        if (pages_allocated % 32 == 0 || pages_allocated == pages_needed) {
+          uart_send_string("Allocated ");
+          uart_send_string(uint_to_str(pages_allocated));
+          uart_send_string(" / ");
+          uart_send_string(uint_to_str(pages_needed));
+          uart_send_string(" pages\n");
+        }
+      } else {
+        uart_send_string("WARNING: Page allocation stopped at ");
+        uart_send_string(uint_to_str(pages_allocated));
+        uart_send_string(" pages\n");
+        break;
+      }
+    }
+    
+    if (pages_allocated == 0) {
+      // Fall back to minimal allocation (one page)
+      uart_send_string("Failed to allocate multiple pages, falling back to single page...\n");
+      void* page = kpage_alloc_flags(PAGEF_ZEROED);
+      
+      if (!page) {
+        uart_send_string("Critical failure: Cannot allocate even a single page\n");
+        kfree(ai_mem_pool.small_block_bitmap);
+        kfree(ai_mem_pool.free_block_sizes);
+        kfree(ai_mem_pool.free_blocks);
+        return -ENOMEM;
+      }
+      
+      // Set up minimal structures
+      ai_mem_pool.small_block_pool = page;
+      ai_mem_pool.small_block_count = PAGE_SIZE / AI_MEMORY_MIN_BLOCK_SIZE;
+      ai_mem_pool.total_size = PAGE_SIZE;
+    } else {
+      // Use the pages we managed to allocate
+      uart_send_string("Using ");
+      uart_send_string(uint_to_str(pages_allocated));
+      uart_send_string(" non-contiguous pages for AI memory\n");
+      
+      // Use the first allocated page as the small block pool
+      ai_mem_pool.small_block_pool = ai_mem_pool.free_blocks[0];
+      
+      // Remove it from the free list
+      for (size_t i = 0; i < ai_mem_pool.free_block_count - 1; i++) {
+        ai_mem_pool.free_blocks[i] = ai_mem_pool.free_blocks[i + 1];
+        ai_mem_pool.free_block_sizes[i] = ai_mem_pool.free_block_sizes[i + 1];
+      }
+      ai_mem_pool.free_block_count--;
+      
+      // Adjust the small block count for the actual allocation
+      ai_mem_pool.small_block_count = PAGE_SIZE / AI_MEMORY_MIN_BLOCK_SIZE;
+      ai_mem_pool.total_size = pages_allocated * PAGE_SIZE;
+    }
+  } else {
+    // Successfully allocated contiguous memory
+    uart_send_string("Successfully allocated contiguous memory block at: 0x");
+    uart_send_string(uint_to_str((uintptr_t)memory));
+    uart_send_string("\n");
+    
+    ai_mem_pool.small_block_pool = memory;
+    ai_mem_pool.total_size = pages_needed * PAGE_SIZE;
+    
+    // Add the memory to the free blocks list as a single large block
+    ai_mem_pool.free_blocks[0] = memory;
+    ai_mem_pool.free_block_sizes[0] = pages_needed * PAGE_SIZE;
+    ai_mem_pool.free_block_count = 1;
   }
-
-  // Allocate main meory pool (remaining 3/4)
-  size_t main_pool_size = pool_size - small_pool_size;
-  void* main_pool = kpage_alloc_contiguous(main_pool_size / PAGE_SIZE, PAGEF_ZEROED);
-  if (!main_pool)
-  {
-    kpage_free_contiguous(ai_mem_pool.small_block_pool, small_pool_size / PAGE_SIZE);
-    kfree(ai_mem_pool.small_block_bitmap);
-    kfree(ai_mem_pool.free_block_sizes);
-    kfree(ai_mem_pool.free_blocks);
-    uart_send_string("Failed to allocate main memory pool\n");
-    return -ENOMEM;
-  }
-
-  // Initialize the base address to the main pool
-  ai_mem_pool.base_addr = main_pool;
-
-  // Add the main pool to the free list
-  ai_mem_pool.free_blocks[0] = main_pool;
-  ai_mem_pool.free_block_sizes[0] = main_pool_size;
-  ai_mem_pool.free_block_count = 1;
-
-  uart_send_string("AI memory subsystem initialized successfully\n");
-  uart_send_string("Small blocks: ");
-  uart_send_string(uint_to_str(ai_mem_pool.small_block_count));
-  uart_send_string(" x ");
-  uart_send_string(uint_to_str(AI_MEMORY_MIN_BLOCK_SIZE));
-  uart_send_string(" bytes\n");
+  
+  uart_send_string("AI memory subsystem initialized with ");
+  uart_send_string(uint_to_str(ai_mem_pool.total_size / 1024));
+  uart_send_string(" KB total capacity\n");
+  
+  // Print some stats
+  ai_memory_print_stats();
 
   return EOK;
 }

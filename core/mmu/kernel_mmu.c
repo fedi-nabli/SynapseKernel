@@ -143,7 +143,7 @@ static uint64_t flags_to_pte_attr(uint32_t flags)
  */
 static uint64_t* alloc_page_table()
 {
-  uint64_t* table = (uint64_t*)kpage_alloc();
+  uint64_t* table = (uint64_t*)kmalloc(PAGE_SIZE);
   if (table)
   {
     memset(table, 0, PAGE_SIZE);
@@ -158,11 +158,26 @@ static uint64_t* alloc_page_table()
  * @param virt The virtual address to convert
  * @return uintptr_t The physical address of a kernel virtual address
  */
-static uintptr_t kernel_virt_to_phys(uintptr_t virt)
+static inline uintptr_t kernel_virt_to_phys(uintptr_t virt) 
 {
-  // Direct convertion from kernel virtual to physical
-  // This is a simplification, real implementation would use page tables
-  return virt - KERNEL_VIRT_BASE;
+  // During early boot, addresses are directly mapped
+  if (virt < 0x1080000000ULL) {  // Adjust based on your memory map
+    return virt;
+  }
+  
+  // For high kernel addresses
+  if (virt >= KERNEL_VIRT_BASE) {
+    return virt - KERNEL_VIRT_BASE;
+  }
+
+  uart_send_string("Warning: Invalid virtual address in translation: 0x");
+  uart_send_string(uint_to_str(virt));
+  uart_send_string("\n");
+  return virt;  // Return unchanged as a fallback
+}
+
+static inline uintptr_t kernel_phys_to_virt(uintptr_t phys) {
+  return phys + KERNEL_PHYS_OFFSET;
 }
 
 /**
@@ -178,7 +193,26 @@ int kernel_mmu_init(size_t ram_size)
 {
   uart_send_string("Initializing kernel MMU...\n");
 
-  // Allocate top-level page directory
+  // 1. Configure system registers first
+  uart_send_string("Configuring MAIR_EL1...\n");
+  configure_mair_el1();
+
+  uart_send_string("Configuring TCR_EL1...\n");
+  configure_tcr_el1();
+
+  uart_send_string("Configuring SCTLR_EL1...\n");
+  configure_sctlr_el1();
+
+  uart_send_string("Initial register values:\n");
+  uart_send_string("MAIR_EL1: 0x");
+  uart_send_string(uint_to_str(read_mair_el1()));
+  uart_send_string("\nTCR_EL1: 0x");
+  uart_send_string(uint_to_str(read_tcr_el1()));
+  uart_send_string("\nSCTLR_EL1: 0x");
+  uart_send_string(uint_to_str(read_sctlr_el1()));
+  uart_send_string("\n");
+
+  // 2. Allocate and setup page tables
   kernel_pgd = alloc_page_table();
   if (!kernel_pgd)
   {
@@ -186,22 +220,31 @@ int kernel_mmu_init(size_t ram_size)
     return -ENOMEM;
   }
 
-  // Get physical address of PGD
-  kernel_pgd_phys = kernel_virt_to_phys((uintptr_t)kernel_pgd);
+  // Clear it
+  memset(kernel_pgd, 0, PAGE_SIZE);
 
-  // Configure MMU registers
-  configure_mair_el1();
-  configure_tcr_el1();
-  configure_sctlr_el1();
+  // Convert to physical address
+  kernel_pgd_phys = (uintptr_t)kernel_pgd;
 
-  // Set translation base registers
-  write_ttbr0_el1(0); // User space (will be setup later)
-  write_ttbr1_el1(kernel_pgd_phys); // kernel space
-
-  uart_send_string("Kernel MMU initialized with PGD at 0x");
+  uart_send_string("PGD allocated at VA: 0x");
+  uart_send_string(uint_to_str((uintptr_t)kernel_pgd));
+  uart_send_string(", PA: 0x");
   uart_send_string(uint_to_str(kernel_pgd_phys));
   uart_send_string("\n");
-  
+
+  // 3. Set translation registers
+  uart_send_string("Setting translation registers...\n");
+  write_ttbr0_el1(0);
+  write_ttbr1_el1(kernel_pgd_phys);
+
+  uart_send_string("TTBR values set:\n");
+  uart_send_string("TTBR0_EL1: 0x");
+  uart_send_string(uint_to_str(read_ttbr0_el1()));
+  uart_send_string("\nTTBR1_EL1: 0x");
+  uart_send_string(uint_to_str(read_ttbr1_el1()));
+  uart_send_string("\n");
+
+  uart_send_string("MMU initialization complete\n");
   return EOK;
 }
 
@@ -217,27 +260,38 @@ int kernel_mmu_enable()
 {
   uart_send_string("Enabling MMU...\n");
 
-  // Read current SCTLR_EL1 value
+  // Print register values in hex
+  uart_send_string("Pre-enable state:\n");
+  uart_send_string("TTBR0_EL1: 0x");
+  uart_send_string(uint_to_str(read_ttbr0_el1()));
+  uart_send_string("\nTTBR1_EL1: 0x");
+  uart_send_string(uint_to_str(read_ttbr1_el1()));
+  uart_send_string("\nTCR_EL1:   0x");
+  uart_send_string(uint_to_str(read_tcr_el1()));
+  uart_send_string("\nMAIR_EL1:  0x");
+  uart_send_string(uint_to_str(read_mair_el1()));
+  uart_send_string("\nSCTLR_EL1: 0x");
+  uart_send_string(uint_to_str(read_sctlr_el1()));
+  uart_send_string("\n");
+
+  // Check page table alignment
+  uint64_t ttbr1 = read_ttbr1_el1();
+  if (ttbr1 & 0xFFF) {
+    uart_send_string("TTBR1_EL1 not aligned!\n");
+    return -EINVARG;
+  }
+
+  // Enable MMU
+  enable_mmu_assembly(read_ttbr0_el1(), read_ttbr1_el1());
+
+  // Verify
   uint64_t sctlr = read_sctlr_el1();
-
-  // Set the MMU Enable bit
-  sctlr |= SCTLR_EL1_M;
-
-  // Write back to SCTLR_EL1
-  write_sctlr_el1(sctlr);
-
-  dsb_sy();
-  isb_sy();
-
-  // Verify it's all set
-  sctlr = read_sctlr_el1();
-  if (!(sctlr & SCTLR_EL1_M))
-  {
-    uart_send_string("ERROR: Cannot enable MMU\n");
+  if (!(sctlr & 1)) {
+    uart_send_string("MMU not enabled!\n");
     return -EMMU;
   }
 
-  uart_send_string("MMU enabled\n");
+  uart_send_string("MMU enabled successfully\n");
   return EOK;
 }
 
@@ -255,14 +309,34 @@ int kernel_mmu_enable()
  */
 int kernel_mmu_map(uintptr_t phys_addr, uintptr_t virt_addr, size_t size, uint32_t flags)
 {
+  // Initial mapping info
+  uart_send_string("Mapping memory:\n  Physical: 0x");
+  uart_send_string(uint_to_str(phys_addr));
+  uart_send_string("\n  Virtual: 0x");
+  uart_send_string(uint_to_str(virt_addr));
+  uart_send_string("\n  Size: ");
+  uart_send_string(uint_to_str(size));
+  uart_send_string(" bytes\n");
+
   // Align addresses and sizes to page boundaries
   uintptr_t phys_aligned = phys_addr & ~(PAGE_SIZE - 1);
   uintptr_t virt_aligned = virt_addr & ~(PAGE_SIZE - 1);
   size_t aligned_size = ((size + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1));
   size_t pages = aligned_size / PAGE_SIZE;
 
+  uart_send_string("Aligned values:\n  Physical: 0x");
+  uart_send_string(uint_to_str(phys_aligned));
+  uart_send_string("\n  Virtual: 0x");
+  uart_send_string(uint_to_str(virt_aligned));
+  uart_send_string("\n  Pages: ");
+  uart_send_string(uint_to_str(pages));
+  uart_send_string("\n");
+
   // Convert flags to page table attributes
   uint64_t pte_attr = flags_to_pte_attr(flags);
+  uart_send_string("PTE attributes: 0x");
+  uart_send_string(uint_to_str(pte_attr));
+  uart_send_string("\n");
 
   // Iterate through each page
   for (size_t i = 0; i < pages; i++)
@@ -270,88 +344,172 @@ int kernel_mmu_map(uintptr_t phys_addr, uintptr_t virt_addr, size_t size, uint32
     uintptr_t curr_virt = virt_aligned + (i * PAGE_SIZE);
     uintptr_t curr_phys = phys_aligned + (i * PAGE_SIZE);
 
+    uart_send_string("\nStarting page mapping ");
+    uart_send_string(uint_to_str(i));
+    uart_send_string(" of ");
+    uart_send_string(uint_to_str(pages));
+    uart_send_string("\n");
+
     // Extract page table indices
     uint64_t pgd_index = (curr_virt >> PGD_SHIFT) & PGD_MASK;
     uint64_t pud_index = (curr_virt >> PUD_SHIFT) & PUD_MASK;
     uint64_t pmd_index = (curr_virt >> PMD_SHIFT) & PMD_MASK;
-    uint64_t pte_index = (curr_phys >> PTE_SHIFT) & PTE_MASK;
+    uint64_t pte_index = (curr_virt >> PTE_SHIFT) & PTE_MASK;
 
-    // Get or create the page upper directory (PUD)
+    uart_send_string("Table indices for current page:\n");
+    uart_send_string("  PGD: ");
+    uart_send_string(uint_to_str(pgd_index));
+    uart_send_string("\n  PUD: ");
+    uart_send_string(uint_to_str(pud_index));
+    uart_send_string("\n  PMD: ");
+    uart_send_string(uint_to_str(pmd_index));
+    uart_send_string("\n  PTE: ");
+    uart_send_string(uint_to_str(pte_index));
+    uart_send_string("\n");
+
+    // Get or create PUD
+    uart_send_string("Accessing PGD entry...\n");
     uint64_t pgd_entry = kernel_pgd[pgd_index];
     uint64_t* pud;
 
     if (!(pgd_entry & PTE_TYPE_TABLE))
     {
-      // PUD doesn't exist, allocate it
+      uart_send_string("Creating new PUD...\n");
       pud = alloc_page_table();
       if (!pud)
       {
+        uart_send_string("Failed to allocate PUD\n");
         return -ENOMEM;
       }
 
-      // Update PGD entry to point to new PUD
-      kernel_pgd[pgd_index] = kernel_virt_to_phys((uintptr_t)pud) | PTE_TYPE_TABLE;
+      uart_send_string("Allocated PUD at VA: 0x");
+      uart_send_string(uint_to_str((uintptr_t)pud));
+      uart_send_string("\n");
+
+      // Get physical address
+      uintptr_t pud_phys = kernel_virt_to_phys((uintptr_t)pud);
+      
+      uart_send_string("PUD physical: 0x");
+      uart_send_string(uint_to_str(pud_phys));
+      uart_send_string("\n");
+
+      // Verify alignment
+      if (pud_phys & 0xFFF) {
+        uart_send_string("ERROR: PUD not page aligned!\n");
+        return -ENOMEM;
+      }
+
+      // Create table entry
+      kernel_pgd[pgd_index] = pud_phys | PTE_TYPE_TABLE;
+
+      uart_send_string("PGD entry created: 0x");
+      uart_send_string(uint_to_str(kernel_pgd[pgd_index]));
+      uart_send_string("\n");
     }
     else
     {
-      // PUD exists, get its address
-      pud = (uint64_t*)((pgd_entry & PTE_TABLE_ADDR_MASK) + KERNEL_VIRT_BASE);
+      uart_send_string("Using existing PUD from entry: 0x");
+      uart_send_string(uint_to_str(pgd_entry));
+      uart_send_string("\n");
+
+      uintptr_t pud_phys = pgd_entry & PTE_TABLE_ADDR_MASK;
+      pud = (uint64_t*)pud_phys;  // During early boot, use physical address directly
+
+      uart_send_string("Extracted PUD physical: 0x");
+      uart_send_string(uint_to_str(pud_phys));
+      uart_send_string("\n");
     }
 
-    // Get or create the page middle directory (PMD)
+    // Process PUD
+    uart_send_string("Accessing PUD entry...\n");
     uint64_t pud_entry = pud[pud_index];
     uint64_t* pmd;
 
     if (!(pud_entry & PTE_TYPE_TABLE))
     {
-      // PMD doesn't exist, allocate it
+      uart_send_string("Creating new PMD...\n");
       pmd = alloc_page_table();
       if (!pmd)
       {
+        uart_send_string("Failed to allocate PMD\n");
         return -ENOMEM;
       }
 
-      // Update PUD entry to point to new PMD
-      pud[pud_index] = kernel_virt_to_phys((uintptr_t)pmd) | PTE_TYPE_TABLE;
+      uintptr_t pmd_phys = kernel_virt_to_phys((uintptr_t)pmd);
+      pud[pud_index] = pmd_phys | PTE_TYPE_TABLE;
+
+      uart_send_string("PMD allocated at VA: 0x");
+      uart_send_string(uint_to_str((uintptr_t)pmd));
+      uart_send_string(", PA: 0x");
+      uart_send_string(uint_to_str(pmd_phys));
+      uart_send_string("\n");
     }
     else
     {
-      // PDM exists, get its address
-      pmd = (uint64_t*)((pud_entry & PTE_TABLE_ADDR_MASK) + KERNEL_VIRT_BASE);
+      uintptr_t pmd_phys = pud_entry & PTE_TABLE_ADDR_MASK;
+      pmd = (uint64_t*)kpage_from_phys(pmd_phys);
+
+      uart_send_string("Using existing PMD at VA: 0x");
+      uart_send_string(uint_to_str((uintptr_t)pmd));
+      uart_send_string(", PA: 0x");
+      uart_send_string(uint_to_str(pmd_phys));
+      uart_send_string("\n");
     }
 
-    // Get or create the page table (PT)
+    // Process PMD
+    uart_send_string("Accessing PMD entry...\n");
     uint64_t pmd_entry = pmd[pmd_index];
     uint64_t* pt;
 
     if (!(pmd_entry & PTE_TYPE_TABLE))
     {
-      // PT deosn't exist, allocate it
+      uart_send_string("Creating new PT...\n");
       pt = alloc_page_table();
       if (!pt)
       {
+        uart_send_string("Failed to allocate PT\n");
         return -ENOMEM;
       }
 
-      // Update PMD entry to point to new PT
-      pmd[pmd_index] = kernel_virt_to_phys((uintptr_t)pt) | PTE_TYPE_TABLE;
+      uintptr_t pt_phys = kernel_virt_to_phys((uintptr_t)pt);
+      pmd[pmd_index] = pt_phys | PTE_TYPE_TABLE;
+
+      uart_send_string("PT allocated at VA: 0x");
+      uart_send_string(uint_to_str((uintptr_t)pt));
+      uart_send_string(", PA: 0x");
+      uart_send_string(uint_to_str(pt_phys));
+      uart_send_string("\n");
     }
     else
     {
-      // PT exists, get its address
-      pt = (uint64_t*)((pmd_entry & PTE_TABLE_ADDR_MASK) + KERNEL_VIRT_BASE);
+      uintptr_t pt_phys = pmd_entry & PTE_TABLE_ADDR_MASK;
+      pt = (uint64_t*)kpage_from_phys(pt_phys);
+
+      uart_send_string("Using existing PT at VA: 0x");
+      uart_send_string(uint_to_str((uintptr_t)pt));
+      uart_send_string(", PA: 0x");
+      uart_send_string(uint_to_str(pt_phys));
+      uart_send_string("\n");
     }
 
-    // Create PTE to map the physical base
+    // Create PTE
+    uart_send_string("Creating PTE...\n");
     pt[pte_index] = (curr_phys & PTE_BLOCK_ADDR_MASK) | pte_attr | PTE_TYPE_PAGE;
+    
+    uart_send_string("PTE created with value: 0x");
+    uart_send_string(uint_to_str(pt[pte_index]));
+    uart_send_string("\n");
+
+    // Invalidate TLB entry for this page
+    uart_send_string("Invalidating TLB entry for VA: 0x");
+    uart_send_string(uint_to_str(curr_virt));
+    uart_send_string("\n");
+    
+    invalidate_tlb_entry(curr_virt);
+    uart_send_string("Page mapping complete\n");
   }
 
-  // Invalidate TLB entries for the mapped range
-  for (size_t i = 0; i < pages; i++)
-  {
-    invalidate_tlb_entry(virt_aligned + (i * PAGE_SIZE));
-  }
-
+  uart_send_string("All pages mapped successfully\n");
   return EOK;
 }
 

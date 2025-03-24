@@ -81,8 +81,8 @@
 
 /* Translation table entry bits */
 #define PTE_TYPE_MASK         0x03 // Entry type masl
-#define PTE_TABLE_ADDR_MASK   0xFFFFFFFFF000 // Physical address mask for table entries
-#define PTE_BLOCK_ADDR_MASK   0xFFFFFFFFF000 // Physical address mask for block entries
+#define PTE_TABLE_ADDR_MASK   0x0000FFFFFFFFF000ULL  // 48-bit physical address, 4KB aligned
+#define PTE_BLOCK_ADDR_MASK   0x0000FFFFFFFFF000ULL  // 48-bit physical address, 4KB aligned
 
 /* Page attribute bits (for both block and page entries) */
 #define PTE_ATTR_AF         (1UL << 10) // Access flag
@@ -144,5 +144,7 @@ void configure_tcr_el1();
  * @date 13 Mar 2025
  */
 void configure_mair_el1();
+
+void enable_mmu_assembly(uint64_t ttbr0, uint64_t ttbr1);
 
 #endif
