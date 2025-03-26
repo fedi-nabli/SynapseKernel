@@ -59,64 +59,6 @@ static char* uint_to_str(uint64_t value)
 }
 
 /**
- * @brief Helper function to copy a string with length limit
- * 
- * @param dest Destination buffer where the string will be copied
- * @param src Source string to be copied
- * @param max_len Maximum length of the destination buffer
- * 
- * @author Fedi Nabli
- * @date 21 Mar 2025
- */
-static void str_copy(char* dest, const char* src, size_t max_len)
-{
-  size_t i;
-  for (i = 0; i < max_len - 1 && src[i] != '\0'; i++)
-  {
-    dest[i] = src[i];
-  }
-  dest[i] = '\0';
-}
-
-/**
- * @brief Add a memory region to the tracking array
- * 
- * This function adds a memory region to the global memory regions array.
- * It ensures that the number of memory regions does not exceed the maximum limit.
- * The function copies the provided name to the region's name field using a safe string copy function.
- * 
- * @param phys_start The physical start address of the memory region
- * @param virt_start The virtual start address of the memory region
- * @param size The size of the memory region
- * @param type The type of the memory region
- * @param name The name of the memory region
- * @return int Returns EOK on success, or -ENOMEM if the maximum number of regions is exceeded
- * 
- * @author Fedi Nabli
- * @date 21 Mar 2025
- */
-static int add_memory_region(uintptr_t phys_start, uintptr_t virt_start, size_t size, mem_region_type_t type, const char* name)
-{
-  if (num_memory_regions >= MAX_MEMORY_REGIONS)
-  {
-    return -ENOMEM;
-  }
-
-  mem_system_region_t* region = &memory_regions[num_memory_regions];
-
-  region->phys_start = phys_start;
-  region->phys_end = phys_start + size;
-  region->virt_start = virt_start;
-  region->size = size;
-  region->type = type;
-  str_copy(region->name, name, sizeof(region->name));
-
-  num_memory_regions++;
-
-  return EOK;
-}
-
-/**
  * @brief Initialize the complete memory system
  * 
  * This function initializes the entire memory system, including the kernel heap,
@@ -163,17 +105,6 @@ int memory_system_init(size_t ram_size, uintptr_t kernel_start, uintptr_t kernel
     uart_send_string("Failed to initialize AI memory\n");
     return res;
   }
-
-  // Step 7: Register memory regions for tracking
-
-  // Add RAM region
-  add_memory_region(0, 0, ram_size, MEM_REGION_TYPE_RAM, "System RAM");
-
-  // Add kernel region
-  add_memory_region(kernel_start, kernel_start, kernel_end - kernel_start, MEM_REGION_TYPE_KERNEL, "Kernel");
-
-  // Add UART region
-  add_memory_region(0x09000000, 0x09000000, 0x1000, MEM_REGION_TYPE_MMIO, "UART");
 
   uart_send_string("Memory system initialization complete\n");
 
