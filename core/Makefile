@@ -8,7 +8,7 @@ BUILD_DIR := ../build/core
 INCLUDES := -I../arch/arm64/includes -I../includes
 
 # Source files
-OBJ_FILES := $(BUILD_DIR)/kernel_main.o $(BUILD_DIR)/memory/memory.o $(BUILD_DIR)/mmu/kernel_mmu.o $(BUILD_DIR)/memory/heap/heap.o $(BUILD_DIR)/memory/heap/kheap.o $(BUILD_DIR)/memory/paging/paging.o $(BUILD_DIR)/memory/ai_memory/ai_memory.o $(BUILD_DIR)/memory/memory_system.o
+OBJ_FILES := $(BUILD_DIR)/kernel_main.o $(BUILD_DIR)/memory/memory.o $(BUILD_DIR)/memory/heap/heap.o $(BUILD_DIR)/memory/heap/kheap.o $(BUILD_DIR)/memory/ai_memory/ai_memory.o $(BUILD_DIR)/memory/memory_system.o
 
 # Compile flags
 CFLAGS += $(INCLUDES) -Wall -Wextra
@@ -28,10 +28,6 @@ $(BUILD_DIR)/kernel_main.o: kernel_main.c | $(BUILD_DIR)
 $(BUILD_DIR)/memory/memory.o: memory/memory.c | $(BUILD_DIR)/memory
 	$(CC) $(CFLAGS) -c -o $(BUILD_DIR)/memory/memory.o memory/memory.c
 
-# Compile kernel mmu file
-$(BUILD_DIR)/mmu/kernel_mmu.o: mmu/kernel_mmu.c | $(BUILD_DIR)/mmu
-	$(CC) $(CFLAGS) -I../includes/kernel -c -o $(BUILD_DIR)/mmu/kernel_mmu.o mmu/kernel_mmu.c
-
 # Compile memory heap file
 $(BUILD_DIR)/memory/heap/heap.o: memory/heap/heap.c | $(BUILD_DIR)/memory/heap
 	$(CC) $(CFLAGS) -I./memory/heap -c -o $(BUILD_DIR)/memory/heap/heap.o memory/heap/heap.c
@@ -39,10 +35,6 @@ $(BUILD_DIR)/memory/heap/heap.o: memory/heap/heap.c | $(BUILD_DIR)/memory/heap
 # Compile memory kernel heap file
 $(BUILD_DIR)/memory/heap/kheap.o: memory/heap/kheap.c | $(BUILD_DIR)/memory/heap
 	$(CC) $(CFLAGS) -I./memory/heap -I../includes/synapse/memory/heap -I../includes/synapse/memory/heap -c -o $(BUILD_DIR)/memory/heap/kheap.o memory/heap/kheap.c
-
-# Compile memory paging file
-$(BUILD_DIR)/memory/paging/paging.o: memory/paging/paging.c | $(BUILD_DIR)/memory/paging
-	$(CC) $(CFLAGS) -I../includes/synapse/memory/paging -c -o $(BUILD_DIR)/memory/paging/paging.o memory/paging/paging.c
 
 # Compile memory ai memory file
 $(BUILD_DIR)/memory/ai_memory/ai_memory.o: memory/ai_memory/ai_memory.c | $(BUILD_DIR)/memory/ai_memory

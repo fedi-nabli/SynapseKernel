@@ -10,7 +10,6 @@
 
 #include <synapse/memory/memory.h>
 #include <synapse/memory/heap/kheap.h>
-// #include <synapse/memory/paging/paging.h>
 
 // Memory pool structure
 typedef struct

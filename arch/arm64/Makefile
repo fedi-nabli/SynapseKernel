@@ -15,7 +15,7 @@ MMU_DIR := mmu
 BOOT_OBJS := $(BUILD_DIR)/$(BOOT_DIR)/start.o $(BUILD_DIR)/$(BOOT_DIR)/boot.o
 INTERRUPT_OBJS := $(BUILD_DIR)/$(INTERRUPT_DIR)/vector.o
 UART_OBJS := $(BUILD_DIR)/$(UART_DIR)/uart.o
-MMU_OBJS := $(BUILD_DIR)/$(MMU_DIR)/mmu.o $(BUILD_DIR)/$(MMU_DIR)/arm_mmu.o
+MMU_OBJS := $(BUILD_DIR)/$(MMU_DIR)/mmu.o
 
 INCLUDES := -I./includes -I../../includes
 
@@ -51,10 +51,6 @@ $(BUILD_DIR)/$(UART_DIR)/uart.o: $(UART_DIR)/uart.S | $(BUILD_DIR)/$(UART_DIR)
 # Compile mmu assembly file
 $(BUILD_DIR)/$(MMU_DIR)/mmu.o: $(MMU_DIR)/mmu.S | $(BUILD_DIR)/$(MMU_DIR)
 	$(AS) $(ASFLAGS) -o $(BUILD_DIR)/$(MMU_DIR)/mmu.o $(MMU_DIR)/mmu.S
-
-# Compile mmu c file
-$(BUILD_DIR)/$(MMU_DIR)/arm_mmu.o: $(MMU_DIR)/arm_mmu.c | $(BUILD_DIR)/$(MMU_DIR)
-	$(CC) $(CFLAGS) -c -o $(BUILD_DIR)/$(MMU_DIR)/arm_mmu.o mmu/arm_mmu.c
 
 print_order:
 	@echo "Build Order:"

@@ -52,7 +52,7 @@ all: directories kernel
 
 # Create build directories
 directories:
-	@mkdir -p $(BIN_DIR) $(BUILD_DIR) $(ARCH_BUILD_DIR)/boot $(ARCH_BUILD_DIR)/interrupt $(ARCH_BUILD_DIR)/uart $(CORE_BUILD_DIR) $(CORE_BUILD_DIR)/mmu $(CORE_BUILD_DIR)/memory $(CORE_BUILD_DIR)/memory/heap $(CORE_BUILD_DIR)/memory/paging $(CORE_BUILD_DIR)/memory/ai_memory
+	@mkdir -p $(BIN_DIR) $(BUILD_DIR) $(ARCH_BUILD_DIR)/boot $(ARCH_BUILD_DIR)/interrupt $(ARCH_BUILD_DIR)/uart $(CORE_BUILD_DIR)  $(CORE_BUILD_DIR)/memory $(CORE_BUILD_DIR)/memory/heap $(CORE_BUILD_DIR)/memory/ai_memory
 
 # Build subsystems
 arch:
@@ -69,12 +69,9 @@ kernel: arch core
 		$(ARCH_BUILD_DIR)/interrupt/vector.o \
 		$(ARCH_BUILD_DIR)/uart/uart.o \
 		$(ARCH_BUILD_DIR)/mmu/mmu.o \
-		$(ARCH_BUILD_DIR)/mmu/arm_mmu.o \
 		$(CORE_BUILD_DIR)/memory/memory.o \
-		$(CORE_BUILD_DIR)/mmu/kernel_mmu.o \
 		$(CORE_BUILD_DIR)/memory/heap/heap.o \
 		$(CORE_BUILD_DIR)/memory/heap/kheap.o \
-		$(CORE_BUILD_DIR)/memory/paging/paging.o \
 		$(CORE_BUILD_DIR)/memory/ai_memory/ai_memory.o \
 		$(CORE_BUILD_DIR)/memory/memory_system.o \
 		$(CORE_BUILD_DIR)/kernel_main.o

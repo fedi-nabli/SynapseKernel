@@ -28,7 +28,7 @@ typedef struct
  * @brief Initialize the complete memory system
  * 
  * This function initializes the entire memory system, including the kernel heap,
- * memory management unit (MMU), paging system, and AI memory subsystem. It also
+ * and AI memory subsystem. It also
  * registers memory regions for tracking and creates necessary identity mappings.
  * 
  * @param ram_size The total size of the RAM in bytes
@@ -41,11 +41,10 @@ typedef struct
  */
 int memory_system_init(size_t ram_size, uintptr_t kernel_start, uintptr_t kernel_end);
 
-int memory_test_kernel_heap(void);
-int memory_test_paging(void);
-int memory_test_ai_memory(void);
-int memory_test_regions(void);
-void memory_print_regions(void);
-int memory_run_tests(void);
+int memory_test_kernel_heap();
+int memory_test_ai_memory();
+int memory_test_regions();
+void memory_print_regions();
+int memory_run_tests();
 
 #endif

@@ -7,11 +7,9 @@
 #include <synapse/status.h>
 
 #include <kernel/config.h>
-#include <kernel/kernel_mmu.h>
 
 #include <synapse/memory/memory.h>
 #include <synapse/memory/heap/kheap.h>
-// #include <synapse/memory/paging/paging.h>
 #include <synapse/memory/ai_memory/ai_memory.h>
 
 // Global memory regions array
@@ -109,39 +107,10 @@ static int add_memory_region(uintptr_t phys_start, uintptr_t virt_start, size_t 
 }
 
 /**
- * @brief Convert memory region type to mapping flags
- * 
- * This function converts a memory region type to the corresponding mapping flags.
- * The mapping flags are used to configure the memory management unit (MMU) for the region.
- * 
- * @param type The type of the memory region
- * @return uint32_t The mapping flags for the given memory region type
- * 
- * @author Fedi Nabli
- * @date 21 Mar 2025
- */
-// static uint32_t region_type_to_flags(mem_region_type_t type)
-// {
-//   switch (type)
-//   {
-//     case MEM_REGION_TYPE_RAM:
-//       return MAP_READ | MAP_WRITE | MAP_CACHE_WB;
-//     case MEM_REGION_TYPE_DEVICE:
-//       return MAP_READ | MAP_WRITE | MAP_DEVICE;
-//     case MEM_REGION_TYPE_MMIO:
-//       return MAP_READ | MAP_WRITE | MAP_DEVICE;
-//     case MEM_REGION_TYPE_KERNEL:
-//       return MAP_READ | MAP_WRITE | MAP_EXEC | MAP_CACHE_WB;
-//     default:
-//       return MAP_READ | MAP_CACHE_WB;
-//   }
-// }
-
-/**
  * @brief Initialize the complete memory system
  * 
  * This function initializes the entire memory system, including the kernel heap,
- * memory management unit (MMU), paging system, and AI memory subsystem. It also
+ * and AI memory subsystem. It also
  * registers memory regions for tracking and creates necessary identity mappings.
  * 
  * @param ram_size The total size of the RAM in bytes
@@ -171,65 +140,6 @@ int memory_system_init(size_t ram_size, uintptr_t kernel_start, uintptr_t kernel
   uart_send_string("Initializing kernel heap...\n");
   kheap_init(ram_size);
   uart_send_string("Heap initialized!\n");
-
-  // // Step 2: Initialize MMU
-  // uart_send_string("Initializing MMU...\n");
-  // res = kernel_mmu_init(ram_size);
-  // if (res < 0)
-  // {
-  //   uart_send_string("Failed to initialize MMU\n");
-  //   return res;
-  // }
-
-  // // Step 3: Create identity mappings for critical regions
-
-  // // Identity map the first 16MB of RAM for boot code and early kernel
-  // uart_send_string("Creating identity mappings for boot code and early kernel...\n");
-  // res = kernel_mmu_identity_map(0, 16 * 1024 * 1024, MAP_READ | MAP_WRITE | MAP_EXEC | MAP_CACHE_WB);
-  // if (res < 0)
-  // {
-  //   uart_send_string("Failed to create identity mappings\n");
-  //   return res;
-  // }
-
-  // // Identity map MMIO regions (in a real system, these would be hardware specific)
-  // // For now, just map UART
-  // uart_send_string("Creating identity mappings for MMIO regions...\n");
-  // res = kernel_mmu_identity_map(0x09000000, 0x1000, MAP_READ | MAP_WRITE | MAP_DEVICE);
-  // if (res < 0)
-  // {
-  //   uart_send_string("Failed to map MMIO regions\n");
-  //   return res;
-  // }
-
-  // // Add the new identity mapping here:
-  // uart_send_string("Identity mapping entire kernel area...\n");
-  // res = kernel_mmu_identity_map(kernel_start & ~(PAGE_SIZE-1), 
-  //                           (kernel_end - kernel_start + PAGE_SIZE*2) & ~(PAGE_SIZE-1),
-  //                           MAP_READ | MAP_WRITE | MAP_EXEC | MAP_CACHE_WB);
-  // if (res < 0)
-  // {
-  //   uart_send_string("Failed to map kernel area\n");
-  //   return res;
-  // }
-
-  // // Step 4: Initialize paging system
-  // uart_send_string("Initializing paging system...\n");
-  // res = paging_init(ram_size, kernel_start, kernel_end);
-  // if (res < 0)
-  // {
-  //   uart_send_string("Failed to initialize paging system\n");
-  //   return res;
-  // }
-
-  // // Step 5: Enable MMU
-  // uart_send_string("Enabling MMU...\n");
-  // res = kernel_mmu_enable();
-  // if (res < 0)
-  // {
-  //   uart_send_string("Failed to enable MMU\n");
-  //   return res;
-  // }
 
   // Step 6: Initialize AI memory subsystem
   size_t ai_pool_size = ram_size / AI_MEMORY_POOL_RATIO;
@@ -480,9 +390,6 @@ int memory_run_tests()
     uart_send_string("Kernel heap tests FAILED\n");
     return res;
   }
-  
-  // Skip paging test since we're having issues with it
-  uart_send_string("Skipping paging system tests\n");
   
   // Test AI memory with minimal test
   res = memory_test_ai_memory();

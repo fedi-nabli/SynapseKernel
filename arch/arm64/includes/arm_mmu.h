@@ -111,40 +111,6 @@ void invalidate_tlb();
 void invalidate_tlb_entry(uint64_t vaddr);
 void dsb_sy();
 void isb_sy();
-
-/**
- * @brief Configure System Control Register (SCTLR_EL1)
- * 
- * This function configures the SCTLR_EL1 register with appropriate settings
- * for the kernel. The MMU will not be enabled here; that will happen in mmu_enable().
- * 
- * @author Fedi Nabli
- * @date 13 Mar 2025
- */
-void configure_sctlr_el1();
-
-/**
- * @brief Configure Translation Control Register (TCR_EL1)
- * 
- * This function sets up the TCR_EL1 register to define characteristics
- * of the memory translation system.
- * 
- * @author Fedi Nabli
- * @date 13 Mar 2025
- */
-void configure_tcr_el1();
-
-/**
- * @brief Configure Memory Attribute Indirection Register (MAIR_EL1)
- * 
- * This function configures memory attributes for different types of memory.
- * It defines how memory is cached, buffered and shared.
- * 
- * @author Fedi Nabli
- * @date 13 Mar 2025
- */
-void configure_mair_el1();
-
 void enable_mmu_assembly(uint64_t ttbr0, uint64_t ttbr1);
 
 #endif
