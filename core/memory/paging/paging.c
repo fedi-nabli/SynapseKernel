@@ -300,6 +300,19 @@ int paging_init(size_t ram_size, uintptr_t kernel_start, uintptr_t kernel_end)
  * @author Fedi Nabli
  * @date 20 Mar 2025
  */
+/**
+ * @brief Key functions that need to be changed in paging.c
+ */
+
+/**
+ * @brief Allocate a single page of physical memory with flags
+ * 
+ * @param flags Allocation flags (e.g., PAGE_KERNEL, PAGE_ZEROED)
+ * @return void* Pointer to the allocated page, or NULL if allocation fails
+ * 
+ * @author Fedi Nabli
+ * @date 20 Mar 2025
+ */
 void* kpage_alloc_flags(uint32_t flags)
 {
   // Find a free page
@@ -335,15 +348,19 @@ void* kpage_alloc_flags(uint32_t flags)
 
   // Calculate page address
   uintptr_t page_addr = page_manager.base_addr + (page_index * PAGE_SIZE);
+  void* virt_addr = kpage_from_phys(page_addr);
 
   // Zero the page if requested
   if (flags & PAGE_ZEROED) {
-    void* virt_addr = kpage_from_phys(page_addr);
-    memset(virt_addr, 0, PAGE_SIZE);
+    // Use explicit loop with volatile to ensure memory is properly written 
+    volatile uint8_t* ptr = (volatile uint8_t*)virt_addr;
+    for (size_t i = 0; i < PAGE_SIZE; i++) {
+      ptr[i] = 0;
+    }
     page_manager.page_info[page_index] |= PAGE_ZEROED;
   }
 
-  return kpage_from_phys(page_addr);
+  return virt_addr;
 }
 
 /**
@@ -404,16 +421,28 @@ void* kpage_alloc_contiguous(size_t count, uint32_t flags)
   }
 
   // Decrement free page count
-  page_manager.free_pages -= count;
+  if (page_manager.free_pages >= count)
+  {
+    page_manager.free_pages -= count;
+  }
+  else
+  {
+    page_manager.free_pages = 0;
+  }
 
   // Calculate start address
   uintptr_t start_addr = page_manager.base_addr + (start_page * PAGE_SIZE);
+  void* virt_addr = kpage_from_phys(start_addr);
 
   // Zero the pages if requested
   if (flags & PAGE_ZEROED)
   {
-    void* virt_addr = kpage_from_phys(start_addr);
-    memset(virt_addr, 0, count * PAGE_SIZE);
+    // Use explicit loop with volatile to ensure memory is properly written
+    volatile uint8_t* ptr = (volatile uint8_t*)virt_addr;
+    for (size_t i = 0; i < count * PAGE_SIZE; i++)
+    {
+      ptr[i] = 0;
+    }
 
     for (size_t i = 0; i < count; i++)
     {
@@ -421,7 +450,7 @@ void* kpage_alloc_contiguous(size_t count, uint32_t flags)
     }
   }
 
-  return kpage_from_phys(start_addr);
+  return virt_addr;
 }
 
 /**
@@ -435,10 +464,21 @@ void* kpage_alloc_contiguous(size_t count, uint32_t flags)
  */
 int kpage_free(void* page)
 {
+  if (!page)
+  {
+    return -EINVARG;
+  }
+  
   uintptr_t phys_addr = kpage_to_phys(page);
 
   // Calculate page index
   size_t page_index = (phys_addr - page_manager.base_addr) / PAGE_SIZE;
+  
+  // Check if index is valid
+  if (page_index >= page_manager.total_pages)
+  {
+    return -EINVARG;
+  }
 
   // Check if page is allocated
   if (!bitmap_test(page_manager.bitmap, page_index))
@@ -469,10 +509,21 @@ int kpage_free(void* page)
  */
 int kpage_free_contiguous(void* page, size_t count)
 {
+  if (!page || count == 0)
+  {
+    return -EINVARG;
+  }
+  
   uintptr_t phys_addr = kpage_to_phys(page);
 
   // Calculate start page index
   size_t start_page = (phys_addr - page_manager.base_addr) / PAGE_SIZE;
+  
+  // Check if index is valid
+  if (start_page + count > page_manager.total_pages)
+  {
+    return -EINVARG;
+  }
 
   // Free each page
   for (size_t i = 0; i < count; i++)
@@ -508,10 +559,21 @@ int kpage_free_contiguous(void* page, size_t count)
  */
 bool kpage_is_allocated(void* page)
 {
+  if (!page)
+  {
+    return false;
+  }
+  
   uintptr_t phys_addr = kpage_to_phys(page);
 
   // Calculate page index
   size_t page_index = (phys_addr - page_manager.base_addr) / PAGE_SIZE;
+  
+  // Check if index is valid
+  if (page_index >= page_manager.total_pages)
+  {
+    return false;
+  }
 
   return bitmap_test(page_manager.bitmap, page_index);
 }

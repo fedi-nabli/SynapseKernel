@@ -41,4 +41,11 @@ typedef struct
  */
 int memory_system_init(size_t ram_size, uintptr_t kernel_start, uintptr_t kernel_end);
 
+int memory_test_kernel_heap(void);
+int memory_test_paging(void);
+int memory_test_ai_memory(void);
+int memory_test_regions(void);
+void memory_print_regions(void);
+int memory_run_tests(void);
+
 #endif

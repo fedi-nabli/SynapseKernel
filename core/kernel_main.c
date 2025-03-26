@@ -87,7 +87,12 @@ void kernel_main(boot_info_t* boot_info)
     while (1) {} // Halt
   }
 
-  
+  // Run memory tests
+  res = memory_run_tests();
+  if (res < 0)
+  {
+    uart_send_string("Memory tests failed!\n");
+  }
 
   // Simple infinite loop
   uart_send_string("Kernel running (idle loop)...\n");

@@ -10,7 +10,7 @@
 
 #include <synapse/memory/memory.h>
 #include <synapse/memory/heap/kheap.h>
-#include <synapse/memory/paging/paging.h>
+// #include <synapse/memory/paging/paging.h>
 
 // Memory pool structure
 typedef struct
@@ -80,76 +80,59 @@ static char* uint_to_str(uint64_t value)
  */
 static void calculate_strides(tensor_t* tensor)
 {
+  uart_send_string("calculate_strides: Start\n");
+  
   if (!tensor || !tensor->shape || tensor->ndim == 0)
   {
+    uart_send_string("calculate_strides: Invalid parameters\n");
     return;
   }
 
   // Allocate strides array if not already allocated
   if (!tensor->strides)
   {
+    uart_send_string("calculate_strides: Allocating strides array\n");
     tensor->strides = (size_t*)kmalloc(tensor->ndim * sizeof(size_t));
     if (!tensor->strides)
     {
+      uart_send_string("calculate_strides: Allocation failed\n");
       return;
     }
   }
 
-  // Calculate strides based on layout
-  switch (tensor->layout)
+  // Very simple stride calculation:
+  // For 1D tensor
+  if (tensor->ndim == 1)
   {
-    case TENSOR_LAYOUT_ROW_MAJOR:
-      // Row-major: rightmost dimension changes fastest
-      tensor->strides[tensor->ndim - 1] = 1;
-      for (int i = tensor->ndim - 2; i >= 0; i--)
-      {
-        tensor->strides[i] = tensor->strides[i + 1] * tensor->shape[i + 1];
-      }
-      break;
-
-    case TENSOR_LAYOUT_COLUMN_MAJOR:
-      // Column-major: leftmost dimension changes fasters
-      tensor->strides[0] = 1;
-      for (size_t i = 1; i < tensor->ndim; i++)
-      {
-        tensor->strides[i] = tensor->strides[i - 1] * tensor->shape[i - 1];
-      }
-      break;
-
-    case TENSOR_LAYOUT_NCHW:
-      // N, C, H, W layout (common in many frameworks)
-      if (tensor->ndim != 4)
-      {
-        // Fall back to row-maor for non 4D-tensors
-        tensor->layout = TENSOR_LAYOUT_ROW_MAJOR;
-        calculate_strides(tensor); // Recursive call with row-major
-        return;
-      }
-
-      // W, H, C, N order of strides
-      tensor->strides[3] = 1; // W
-      tensor->strides[2] = tensor->shape[3]; // H
-      tensor->strides[1] = tensor->strides[2] * tensor->shape[2]; // C
-      tensor->strides[0] = tensor->strides[1] * tensor->shape[1]; // N
-      break;
-
-    case TENSOR_LAYOUT_NHWC:
-      // N, H, W, C layout (Tensorflow default)
-      if (tensor->ndim != 4)
-      {
-        // Fall back to row-major for non-4D tensors
-        tensor->layout = TENSOR_LAYOUT_ROW_MAJOR;
-        calculate_strides(tensor); // Recursive call with row-major
-        return;
-      }
-
-      // C, W, H, N order of strides
-      tensor->strides[3] = 1; // C
-      tensor->strides[2] = tensor->shape[3]; // W
-      tensor->strides[1] = tensor->strides[2] * tensor->shape[2]; // H
-      tensor->strides[0] = tensor->strides[1] * tensor->shape[1]; // N
-      break;
+    uart_send_string("calculate_strides: 1D tensor\n");
+    tensor->strides[0] = 1;
   }
+  // For 2D tensor (row-major)
+  else if (tensor->ndim == 2)
+  {
+    uart_send_string("calculate_strides: 2D tensor\n");
+    if (tensor->strides && tensor->shape) {
+      tensor->strides[1] = 1;                // Last dimension has stride 1
+      tensor->strides[0] = tensor->shape[1]; // First dimension has stride = size of second dimension
+      uart_send_string("calculate_strides: 2D strides calculated successfully\n");
+    } else {
+      uart_send_string("calculate_strides: NULL pointer for strides or shape\n");
+    }
+  }
+  // For any higher dimensions, just use a basic pattern (less efficient but safer)
+  else
+  {
+    uart_send_string("calculate_strides: Higher dimension tensor\n");
+    tensor->strides[tensor->ndim-1] = 1;  // Last dimension has stride 1
+    
+    // Work backwards for other dimensions
+    for (int i = tensor->ndim - 2; i >= 0; i--)
+    {
+      tensor->strides[i] = tensor->strides[i+1] * tensor->shape[i+1];
+    }
+  }
+  
+  uart_send_string("calculate_strides: Done\n");
 }
 
 /**
@@ -354,9 +337,10 @@ static void* ai_memory_alloc(size_t size, size_t alignment)
 
   if (best_idx == (size_t)-1)
   {
-    // No suitable block found, try to allocate from system
-    size_t pages = (size + PAGE_SIZE - 1) / PAGE_SIZE;
-    void* new_block = kpage_alloc_contiguous(pages, PAGEF_ZEROED);
+    // No suitable block found, allocate from system
+    // MODIFIED: Use kmalloc instead of kpage_alloc_contiguous
+    size_t alloc_size = size + alignment;
+    void* new_block = kmalloc(alloc_size);
 
     if (!new_block)
     {
@@ -366,16 +350,10 @@ static void* ai_memory_alloc(size_t size, size_t alignment)
 
     // Align the new block
     void* aligned_block = align_pointer(new_block, alignment);
-    size_t alignment_overhead = (uintptr_t)aligned_block - (uintptr_t)new_block;
-
-    // Check if we need to create a free block for the alignment overhead
-    if (alignment_overhead > 0)
-    {
-      // TODO: Add this space to free blocks
-    }
+    // size_t alignment_overhead = (uintptr_t)aligned_block - (uintptr_t)new_block;
 
     // Update statistics
-    ai_mem_pool.used_size += pages * PAGE_SIZE;
+    ai_mem_pool.used_size += alloc_size;
     ai_mem_pool.allocations++;
     if (ai_mem_pool.used_size > ai_mem_pool.peak_usage)
     {
@@ -455,13 +433,10 @@ static int ai_memory_free(void* ptr)
     return EOK;
   }
 
-  // Calculate block size (must be tracked elsewhere in a real implementation)
-  // For simplicity, we assume it's not a small block and we'll free it to the paging system
-
   // Add to free list if there's space
   if (ai_mem_pool.free_block_count < AI_MEMORY_MAX_BLOCKS)
   {
-    // TODO: determine real block size
+    // We don't know the true size, but we'll just use a conservative estimate
     size_t block_size = PAGE_SIZE; // Assume one page for now
 
     ai_mem_pool.free_blocks[ai_mem_pool.free_block_count] = ptr;
@@ -475,12 +450,12 @@ static int ai_memory_free(void* ptr)
     return EOK;
   }
 
-  // Free list is full, return directly to system
-  // This is simplified, real implementation would determine the actual page count
-  kpage_free(ptr);
+  // Free list is full, use kfree directly
+  // MODIFIED: Use kfree instead of kpage_free
+  kfree(ptr);
 
-  // Update statistics
-  ai_mem_pool.used_size -= PAGE_SIZE; // Assume one page
+  // Update statistics (approximate)
+  ai_mem_pool.used_size -= PAGE_SIZE; // Assume one page size
   ai_mem_pool.deallocations++;
 
   return EOK;
@@ -502,7 +477,7 @@ int ai_memory_init(size_t pool_size)
   
   uart_send_string("Initializing AI memory subsystem with ");
   uart_send_string(uint_to_str(requested_pool_size / 1024));
-  uart_send_string(" KB pool...\n");
+  uart_send_string(" KB pool (using kernel heap)...\n");
 
   // Clean pool structure
   memset(&ai_mem_pool, 0, sizeof(ai_memory_pool_t));
@@ -510,13 +485,15 @@ int ai_memory_init(size_t pool_size)
 
   // Allocate management structures
   ai_mem_pool.free_blocks = (void**)kmalloc(AI_MEMORY_MAX_BLOCKS * sizeof(void*));
-  if (!ai_mem_pool.free_blocks) {
+  if (!ai_mem_pool.free_blocks)
+  {
     uart_send_string("Failed to allocate free block array\n");
     return -ENOMEM;
   }
 
   ai_mem_pool.free_block_sizes = (size_t*)kmalloc(AI_MEMORY_MAX_BLOCKS * sizeof(size_t));
-  if (!ai_mem_pool.free_block_sizes) {
+  if (!ai_mem_pool.free_block_sizes)
+  {
     kfree(ai_mem_pool.free_blocks);
     uart_send_string("Failed to allocate free block sizes array\n");
     return -ENOMEM;
@@ -535,7 +512,8 @@ int ai_memory_init(size_t pool_size)
   size_t bitmap_size = (ai_mem_pool.small_block_count + 63) / 64 * sizeof(uint64_t);
 
   ai_mem_pool.small_block_bitmap = (uint64_t*)kmalloc(bitmap_size);
-  if (!ai_mem_pool.small_block_bitmap) {
+  if (!ai_mem_pool.small_block_bitmap)
+  {
     kfree(ai_mem_pool.free_block_sizes);
     kfree(ai_mem_pool.free_blocks);
     uart_send_string("Failed to allocate small block bitmap\n");
@@ -545,97 +523,76 @@ int ai_memory_init(size_t pool_size)
   // Clear bitmap
   memset(ai_mem_pool.small_block_bitmap, 0, bitmap_size);
   
-  // Calculate number of pages needed
-  size_t pages_needed = small_pool_size / PAGE_SIZE;
-  uart_send_string("Allocating ");
-  uart_send_string(uint_to_str(pages_needed));
-  uart_send_string(" pages for small block pool...\n");
+  // MODIFIED: Use kmalloc instead of page allocator for small block pool
+  uart_send_string("Allocating small block pool using kmalloc...\n");
   
-  // Try contiguous allocation first
-  void* memory = kpage_alloc_contiguous(pages_needed, PAGEF_ZEROED);
-  
-  if (!memory) {
-    // Fall back to allocating individual pages
-    uart_send_string("Contiguous allocation failed, trying individual pages...\n");
+  // Allocate small block pool using kmalloc
+  ai_mem_pool.small_block_pool = kmalloc(small_pool_size);
+  if (!ai_mem_pool.small_block_pool)
+  {
+    uart_send_string("Failed to allocate small block pool, trying smaller size...\n");
     
-    // Allocate pages individually and track them in free blocks
-    size_t pages_allocated = 0;
+    // Try a smaller allocation
+    small_pool_size = PAGE_SIZE * 4; // Try just 16KB
+    ai_mem_pool.small_block_pool = kmalloc(small_pool_size);
     
-    for (size_t i = 0; i < pages_needed && i < AI_MEMORY_MAX_BLOCKS; i++) {
-      void* page = kpage_alloc_flags(PAGEF_ZEROED);
-      if (page) {
-        // Add to free blocks list
-        ai_mem_pool.free_blocks[ai_mem_pool.free_block_count] = page;
-        ai_mem_pool.free_block_sizes[ai_mem_pool.free_block_count] = PAGE_SIZE;
-        ai_mem_pool.free_block_count++;
-        pages_allocated++;
-        
-        if (pages_allocated % 32 == 0 || pages_allocated == pages_needed) {
-          uart_send_string("Allocated ");
-          uart_send_string(uint_to_str(pages_allocated));
-          uart_send_string(" / ");
-          uart_send_string(uint_to_str(pages_needed));
-          uart_send_string(" pages\n");
-        }
-      } else {
-        uart_send_string("WARNING: Page allocation stopped at ");
-        uart_send_string(uint_to_str(pages_allocated));
-        uart_send_string(" pages\n");
-        break;
-      }
+    if (!ai_mem_pool.small_block_pool)
+    {
+      uart_send_string("Critical failure: Cannot allocate small block pool\n");
+      kfree(ai_mem_pool.small_block_bitmap);
+      kfree(ai_mem_pool.free_block_sizes);
+      kfree(ai_mem_pool.free_blocks);
+      return -ENOMEM;
     }
     
-    if (pages_allocated == 0) {
-      // Fall back to minimal allocation (one page)
-      uart_send_string("Failed to allocate multiple pages, falling back to single page...\n");
-      void* page = kpage_alloc_flags(PAGEF_ZEROED);
-      
-      if (!page) {
-        uart_send_string("Critical failure: Cannot allocate even a single page\n");
-        kfree(ai_mem_pool.small_block_bitmap);
-        kfree(ai_mem_pool.free_block_sizes);
-        kfree(ai_mem_pool.free_blocks);
-        return -ENOMEM;
-      }
-      
-      // Set up minimal structures
-      ai_mem_pool.small_block_pool = page;
-      ai_mem_pool.small_block_count = PAGE_SIZE / AI_MEMORY_MIN_BLOCK_SIZE;
-      ai_mem_pool.total_size = PAGE_SIZE;
-    } else {
-      // Use the pages we managed to allocate
-      uart_send_string("Using ");
-      uart_send_string(uint_to_str(pages_allocated));
-      uart_send_string(" non-contiguous pages for AI memory\n");
-      
-      // Use the first allocated page as the small block pool
-      ai_mem_pool.small_block_pool = ai_mem_pool.free_blocks[0];
-      
-      // Remove it from the free list
-      for (size_t i = 0; i < ai_mem_pool.free_block_count - 1; i++) {
-        ai_mem_pool.free_blocks[i] = ai_mem_pool.free_blocks[i + 1];
-        ai_mem_pool.free_block_sizes[i] = ai_mem_pool.free_block_sizes[i + 1];
-      }
-      ai_mem_pool.free_block_count--;
-      
-      // Adjust the small block count for the actual allocation
-      ai_mem_pool.small_block_count = PAGE_SIZE / AI_MEMORY_MIN_BLOCK_SIZE;
-      ai_mem_pool.total_size = pages_allocated * PAGE_SIZE;
-    }
-  } else {
-    // Successfully allocated contiguous memory
-    uart_send_string("Successfully allocated contiguous memory block at: 0x");
-    uart_send_string(uint_to_str((uintptr_t)memory));
-    uart_send_string("\n");
-    
-    ai_mem_pool.small_block_pool = memory;
-    ai_mem_pool.total_size = pages_needed * PAGE_SIZE;
-    
-    // Add the memory to the free blocks list as a single large block
-    ai_mem_pool.free_blocks[0] = memory;
-    ai_mem_pool.free_block_sizes[0] = pages_needed * PAGE_SIZE;
-    ai_mem_pool.free_block_count = 1;
+    // Adjust small block count
+    ai_mem_pool.small_block_count = small_pool_size / AI_MEMORY_MIN_BLOCK_SIZE;
   }
+  
+  // Clear the small block pool
+  memset(ai_mem_pool.small_block_pool, 0, small_pool_size);
+  
+  uart_send_string("Small block pool allocated at: 0x");
+  uart_send_string(uint_to_str((uintptr_t)ai_mem_pool.small_block_pool));
+  uart_send_string("\n");
+  
+  // MODIFIED: Use kmalloc for larger blocks too
+  // Allocate a few larger blocks for the free list
+  size_t remaining_size = requested_pool_size - small_pool_size;
+  size_t block_size = 64 * 1024; // 64KB blocks
+  size_t num_blocks = remaining_size / block_size;
+  
+  // Limit to reasonable number
+  if (num_blocks > AI_MEMORY_MAX_BLOCKS - 1)
+    num_blocks = AI_MEMORY_MAX_BLOCKS - 1;
+  
+  uart_send_string("Allocating ");
+  uart_send_string(uint_to_str(num_blocks));
+  uart_send_string(" larger blocks...\n");
+  
+  size_t blocks_allocated = 0;
+  for (size_t i = 0; i < num_blocks; i++)
+  {
+    void* block = kmalloc(block_size);
+    if (block)
+    {
+      ai_mem_pool.free_blocks[ai_mem_pool.free_block_count] = block;
+      ai_mem_pool.free_block_sizes[ai_mem_pool.free_block_count] = block_size;
+      ai_mem_pool.free_block_count++;
+      blocks_allocated++;
+    }
+    else
+    {
+      break;
+    }
+  }
+  
+  uart_send_string("Successfully allocated ");
+  uart_send_string(uint_to_str(blocks_allocated));
+  uart_send_string(" larger blocks\n");
+  
+  // Update total size based on what we actually allocated
+  ai_mem_pool.total_size = small_pool_size + (blocks_allocated * block_size);
   
   uart_send_string("AI memory subsystem initialized with ");
   uart_send_string(uint_to_str(ai_mem_pool.total_size / 1024));
@@ -662,8 +619,11 @@ int ai_memory_init(size_t pool_size)
  */
 tensor_t* ai_tensor_create(size_t* shape, size_t ndim, tensor_dtype_t dtype, tensor_layout_t layout, uint32_t flags)
 {
+  uart_send_string("ai_tensor_create: Starting tensor creation\n");
+  
   if (!shape || ndim == 0 || dtype >= TENSOR_TYPE_COUNT)
   {
+    uart_send_string("ai_tensor_create: Invalid parameters\n");
     return NULL;
   }
 
@@ -671,11 +631,27 @@ tensor_t* ai_tensor_create(size_t* shape, size_t ndim, tensor_dtype_t dtype, ten
   size_t total_elems = 1;
   for (size_t i = 0; i < ndim; i++)
   {
+    uart_send_string("Calculating elements: shape[");
+    uart_send_string(uint_to_str(i));
+    uart_send_string("] = ");
+    uart_send_string(uint_to_str(shape[i]));
+    uart_send_string("\n");
+
     total_elems *= shape[i];
   }
 
+  uart_send_string("ai_tensor_create: Total elements: ");
+  uart_send_string(uint_to_str(total_elems));
+  uart_send_string("\n");
+
   size_t elem_size = ai_tensor_get_elem_size(dtype);
   size_t memory_size = total_elems * elem_size;
+
+  uart_send_string("ai_tensor_create: Element size: ");
+  uart_send_string(uint_to_str(elem_size));
+  uart_send_string(", Memory size: ");
+  uart_send_string(uint_to_str(memory_size));
+  uart_send_string("\n");
 
   // Determine alignment
   size_t alignment = 8; // Default alignment
@@ -684,40 +660,53 @@ tensor_t* ai_tensor_create(size_t* shape, size_t ndim, tensor_dtype_t dtype, ten
     alignment = ai_memory_get_optimal_alignment(dtype);
   }
 
+  uart_send_string("ai_tensor_create: Using alignment: ");
+  uart_send_string(uint_to_str(alignment));
+  uart_send_string("\n");
+
   // Allocate tensor descriptor
+  uart_send_string("ai_tensor_create: Allocating tensor descriptor\n");
   tensor_t* tensor = (tensor_t*)kmalloc(sizeof(tensor_t));
   if (!tensor)
   {
+    uart_send_string("ai_tensor_create: Failed to allocate tensor descriptor\n");
     return NULL;
   }
 
-  // Clearn tensor
+  // Clean tensor
+  uart_send_string("ai_tensor_create: Clearing tensor descriptor\n");
   memset(tensor, 0, sizeof(tensor_t));
 
   // Allocate shape array
+  uart_send_string("ai_tensor_create: Allocating shape array\n");
   tensor->shape = (size_t*)kmalloc(ndim * sizeof(size_t));
   if (!tensor->shape)
   {
+    uart_send_string("ai_tensor_create: Failed to allocate shape array\n");
     kfree(tensor);
     return NULL;
   }
 
   // Copy shape
+  uart_send_string("ai_tensor_create: Copying shape\n");
   for (size_t i = 0; i < ndim; i++)
   {
     tensor->shape[i] = shape[i];
   }
 
   // Allocate strides array
+  uart_send_string("ai_tensor_create: Allocating strides array\n");
   tensor->strides = (size_t*)kmalloc(ndim * sizeof(size_t));
   if (!tensor->strides)
   {
+    uart_send_string("ai_tensor_create: Failed to allocate strides array\n");
     kfree(tensor->shape);
     kfree(tensor);
     return NULL;
   }
 
   // Set tensor properties
+  uart_send_string("ai_tensor_create: Setting tensor properties\n");
   tensor->ndim = ndim;
   tensor->dtype = dtype;
   tensor->elem_size = elem_size;
@@ -725,29 +714,38 @@ tensor_t* ai_tensor_create(size_t* shape, size_t ndim, tensor_dtype_t dtype, ten
   tensor->flags = flags;
 
   // Calculate strides
+  uart_send_string("ai_tensor_create: Calculating strides\n");
   calculate_strides(tensor);
 
-  // Allocate tensor data
+  // Use direct kmalloc for data
+  uart_send_string("ai_tensor_create: Allocating tensor data with kmalloc\n");
   tensor->data = ai_memory_alloc(memory_size, alignment);
   if (!tensor->data)
   {
+    uart_send_string("ai_tensor_create: Failed to allocate tensor data\n");
     kfree(tensor->strides);
     kfree(tensor->shape);
     kfree(tensor);
     return NULL;
   }
+  
+  uart_send_string("ai_tensor_create: Data allocated at 0x");
+  uart_send_string(uint_to_str((uintptr_t)tensor->data));
+  uart_send_string("\n");
 
   // Zero data if requested
   if (flags & TENSOR_MEM_ZEROED)
   {
+    uart_send_string("ai_tensor_create: Zeroing tensor data\n");
     memset(tensor->data, 0, memory_size);
   }
 
+  uart_send_string("ai_tensor_create: Tensor creation successful\n");
   return tensor;
 }
 
 /**
- * @brief Destroy a tensor and free its memory
+ * @brief Destroy a tensor and free its memory (debug version with logging)
  * 
  * @param tensor Pointer to the tensor to destroy
  * @return int Status code (EOK on success, -EINVARG on invalid argument)
@@ -757,31 +755,46 @@ tensor_t* ai_tensor_create(size_t* shape, size_t ndim, tensor_dtype_t dtype, ten
  */
 int ai_tensor_destroy(tensor_t* tensor)
 {
+  uart_send_string("ai_tensor_destroy: Starting tensor destruction\n");
+  
   if (!tensor)
   {
+    uart_send_string("ai_tensor_destroy: NULL tensor pointer\n");
     return -EINVARG;
   }
 
   // Free tensor data
   if (tensor->data)
   {
+    uart_send_string("ai_tensor_destroy: Freeing tensor data at 0x");
+    uart_send_string(uint_to_str((uintptr_t)tensor->data));
+    uart_send_string("\n");
+    
     ai_memory_free(tensor->data);
+  }
+  else
+  {
+    uart_send_string("ai_tensor_destroy: Tensor has NULL data pointer\n");
   }
 
   // Free shape and strides array
   if (tensor->shape)
   {
+    uart_send_string("ai_tensor_destroy: Freeing shape array\n");
     kfree(tensor->shape);
   }
 
   if (tensor->strides)
   {
+    uart_send_string("ai_tensor_destroy: Freeing strides array\n");
     kfree(tensor->strides);
   }
 
   // Free tensor descriptor
+  uart_send_string("ai_tensor_destroy: Freeing tensor descriptor\n");
   kfree(tensor);
 
+  uart_send_string("ai_tensor_destroy: Tensor destruction complete\n");
   return EOK;
 }
 
@@ -1062,7 +1075,7 @@ tensor_t* ai_tensor_view(tensor_t* tensor, size_t* start_indices, size_t* shape)
     return NULL;
   }
 
-  // Copy chape and strides
+  // Copy shape and strides
   for (size_t i = 0; i < tensor->ndim; i++)
   {
     view->shape[i] = shape[i];
