@@ -1,3 +1,13 @@
+/*
+ * memory_system.c - This file implements different methods related to
+ * the memory system management. It initializes and tests all important
+ * memory components.
+ *
+ * Author: Fedi Nabli
+ * Date: 21 Mar 2025
+ * Last Modified: 26 Mar 2025
+ */
+
 #include "memory_system.h"
 
 #include <uart.h>
@@ -256,6 +266,9 @@ int memory_test_kernel_heap()
  * @brief Test the AI memory subsystem
  * 
  * @return int EOK on success, negative error code on failure
+ * 
+ * @author Fedi Nabli
+ * @date 26 Mar 2025
  */
 int memory_test_ai_memory()
 {
@@ -314,6 +327,9 @@ int memory_test_ai_memory()
 
 /**
  * @brief Print all registered memory regions
+ * 
+ * @author Fedi Nabli
+ * @date 26 Mar 2025
  */
 void memory_print_regions()
 {
@@ -361,6 +377,9 @@ void memory_print_regions()
  * @brief Test memory region tracking
  * 
  * @return int EOK on success, negative error code on failure
+ * 
+ * @author Fedi Nabli
+ * @date 25 Mar 2025
  */
 int memory_test_regions()
 {
@@ -377,6 +396,9 @@ int memory_test_regions()
  * @brief Run all memory system tests
  * 
  * @return int EOK on success, negative error code on failure
+ * 
+ * @author Fedi Nabli
+ * @date 26 Mar 2025
  */
 int memory_run_tests()
 {

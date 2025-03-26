@@ -31,7 +31,7 @@ extern char _end;
  */
 void kheap_init(size_t ram_size)
 {
-  size_t target_heap_size = ram_size / 5;
+  size_t target_heap_size = ram_size / 4;
   const size_t MIN_HEAP_SIZE = 4 * 1024 * 1024; // 4MB minimum
   const size_t MAX_HEAP_SIZE = 256 * 1024 * 1024; // 256MB maximum
 

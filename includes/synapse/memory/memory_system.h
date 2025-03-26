@@ -1,3 +1,12 @@
+/*
+ * memory_system.h - This file defines different methods related to
+ * the memory system management. 
+ *
+ * Author: Fedi Nabli
+ * Date: 21 Mar 2025
+ * Last Modified: 26 Mar 2025
+ */
+
 #ifndef __SYNAPSE_MEMORY_SYSTEM_H_
 #define __SYNAPSE_MEMORY_SYSTEM_H_
 
@@ -41,10 +50,52 @@ typedef struct
  */
 int memory_system_init(size_t ram_size, uintptr_t kernel_start, uintptr_t kernel_end);
 
+/**
+ * @brief Test the kernel heap allocator
+ * 
+ * @return int EOK on success, negative error code on failure
+ * 
+ * @author Fedi Nabli
+ * @date 25 Mar 2025
+ */
 int memory_test_kernel_heap();
+
+/**
+ * @brief Test the AI memory subsystem
+ * 
+ * @return int EOK on success, negative error code on failure
+ * 
+ * @author Fedi Nabli
+ * @date 26 Mar 2025
+ */
 int memory_test_ai_memory();
-int memory_test_regions();
+
+/**
+ * @brief Print all registered memory regions
+ * 
+ * @author Fedi Nabli
+ * @date 26 Mar 2025
+ */
 void memory_print_regions();
+
+/**
+ * @brief Test memory region tracking
+ * 
+ * @return int EOK on success, negative error code on failure
+ * 
+ * @author Fedi Nabli
+ * @date 25 Mar 2025
+ */
+int memory_test_regions();
+
+/**
+ * @brief Run all memory system tests
+ * 
+ * @return int EOK on success, negative error code on failure
+ * 
+ * @author Fedi Nabli
+ * @date 26 Mar 2025
+ */
 int memory_run_tests();
 
 #endif

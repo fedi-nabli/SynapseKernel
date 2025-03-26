@@ -1,3 +1,12 @@
+/*
+ * ai_memory.c - This file implements different methods related to
+ * the ai memory subsystem. It uses the kernel heap to manage memory
+ *
+ * Author: Fedi Nabli
+ * Date: 20 Mar 2025
+ * Last Modified: 26 Mar 2025
+ */
+
 #include "ai_memory.h"
 
 #include <uart.h>

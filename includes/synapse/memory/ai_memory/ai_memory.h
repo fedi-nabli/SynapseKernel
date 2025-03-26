@@ -1,3 +1,12 @@
+/*
+ * ai_memory.h - This file defines different methods related to
+ * the ai memory subsystem. It uses the kernel heap to manage memory
+ *
+ * Author: Fedi Nabli
+ * Date: 20 Mar 2025
+ * Last Modified: 26 Mar 2025
+ */
+
 #ifndef __SYNAPSE_MEMORY_AI_MEMORY_H_
 #define __SYNAPSE_MEMORY_AI_MEMORY_H_
 
