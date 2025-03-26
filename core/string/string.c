@@ -1,3 +1,12 @@
+/*
+ * string.c - This file implementes different string
+ * functions found in string.h
+ *
+ * Author: Fedi Nabli
+ * Date: 26 Mar 2025
+ * Last Modified: 26 Mar 2025
+ */
+
 #include <synapse/string/string.h>
 
 #include <synapse/bool.h>

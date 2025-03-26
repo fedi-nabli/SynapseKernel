@@ -1,3 +1,12 @@
+/*
+ * string.h - This file defines different string
+ * functions like the standard library
+ *
+ * Author: Fedi Nabli
+ * Date: 26 Mar 2025
+ * Last Modified: 26 Mar 2025
+ */
+
 #ifndef __SYNAPSE_STRING_H_
 #define __SYNAPSE_STRING_H_
 
