@@ -9,7 +9,7 @@
 #ifndef __SYNAPSE_TYPES_H_
 #define __SYNAPSE_TYPES_H_
 
-#define NULL (void*)0
+#define NULL ((void*)0)
 
 /* Integer types */
 typedef unsigned char   uint8_t;
@@ -27,6 +27,19 @@ typedef unsigned long   size_t;
 typedef signed long     ssize_t;
 typedef unsigned long   uintptr_t;
 typedef signed long     intptr_t;
+
+/* Memory address type */
+typedef void*           addr_t;
+
+/* Process ID type */
+typedef uint16_t        pid_t;
+
+/* Task ID type */
+typedef uint32_t        tid_t;
+
+/* Time types */
+typedef uint64_t        time_t;
+typedef uint64_t        useconds_t;
 
 /* Fixed width types with limits */
 #define UINT8_MAX   0xFF

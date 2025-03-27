@@ -4,7 +4,7 @@
  *
  * Author: Fedi Nabli
  * Date: 5 Mar 2025
- * Last Modified: 6 Mar 2025
+ * Last Modified: 27 Mar 2025
  */
 
 #include "kheap.h"
@@ -82,6 +82,25 @@ void kheap_init(size_t ram_size)
 void* kmalloc(size_t size)
 {
   return heap_malloc(&kernel_heap, size);
+}
+
+/**
+ * @brief Allocates memory and initializes it to zero
+ * 
+ * @param size Amount of memory needed in bytes
+ * @return void* Start address of the zero-initialized memory allocated
+ * 
+ * @author Fedi Nabli
+ * @date 27 Mar 2025
+ */
+void* kzalloc(size_t size)
+{
+  void* ptr = kmalloc(size);
+  if (!ptr)
+    return NULL;
+
+  memset(ptr, 0x00, size);
+  return ptr;
 }
 
 /**

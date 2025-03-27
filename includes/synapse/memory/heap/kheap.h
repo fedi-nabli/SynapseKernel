@@ -4,7 +4,7 @@
  *
  * Author: Fedi Nabli
  * Date: 6 Mar 2025
- * Last Modified: 6 Mar 2025
+ * Last Modified: 27 Mar 2025
  */
 
 #ifndef __SYNAPSE_MEMORY_KHEAP_H_
@@ -34,6 +34,17 @@ void kheap_init(size_t ram_size);
  * @return void* start address of the memory allocated
  */
 void* kmalloc(size_t size);
+
+/**
+ * @brief Allocates memory and initializes it to zero
+ * 
+ * @param size Amount of memory needed in bytes
+ * @return void* Start address of the zero-initialized memory allocated
+ * 
+ * @author Fedi Nabli
+ * @date 27 Mar 2025
+ */
+void* kzalloc(size_t size);
 
 /**
  * @brief Frees memory region previously allocated to ptr
