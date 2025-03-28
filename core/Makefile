@@ -8,7 +8,7 @@ BUILD_DIR := ../build/core
 INCLUDES := -I../arch/arm64/includes -I../includes
 
 # Source files
-OBJ_FILES := $(BUILD_DIR)/kernel_main.o $(BUILD_DIR)/memory/memory.o $(BUILD_DIR)/memory/heap/heap.o $(BUILD_DIR)/memory/heap/kheap.o $(BUILD_DIR)/memory/ai_memory/ai_memory.o $(BUILD_DIR)/memory/memory_system.o $(BUILD_DIR)/string/string.o
+OBJ_FILES := $(BUILD_DIR)/kernel_main.o $(BUILD_DIR)/memory/memory.o $(BUILD_DIR)/memory/heap/heap.o $(BUILD_DIR)/memory/heap/kheap.o $(BUILD_DIR)/memory/ai_memory/ai_memory.o $(BUILD_DIR)/memory/memory_system.o $(BUILD_DIR)/string/string.o $(BUILD_DIR)/interrupts/interrupt.o
 
 # Compile flags
 CFLAGS += $(INCLUDES) -Wall -Wextra
@@ -44,9 +44,13 @@ $(BUILD_DIR)/memory/ai_memory/ai_memory.o: memory/ai_memory/ai_memory.c | $(BUIL
 $(BUILD_DIR)/memory/memory_system.o: memory/memory_system.c | $(BUILD_DIR)/memory
 	$(CC) $(CFLAGS) -I../includes/synapse/memory -c -o $(BUILD_DIR)/memory/memory_system.o memory/memory_system.c
 
-# Compile memory file
+# Compile string file
 $(BUILD_DIR)/string/string.o: string/string.c | $(BUILD_DIR)/string
 	$(CC) $(CFLAGS) -I../includes/synapse/string -c -o $(BUILD_DIR)/string/string.o string/string.c
+
+# Compile interrupt file
+$(BUILD_DIR)/interrupts/interrupt.o: interrupts/interrupt.c | $(BUILD_DIR)/interrupts
+	$(CC) $(CFLAGS) -I../includes/synapse/interrupts -c -o $(BUILD_DIR)/interrupts/interrupt.o interrupts/interrupt.c
 
 # Clean build artifacts
 clean:

@@ -41,6 +41,10 @@ typedef uint32_t        tid_t;
 typedef uint64_t        time_t;
 typedef uint64_t        useconds_t;
 
+/* ARM-specific registers and features */
+typedef uint64_t        reg_t; // General purpose register
+typedef uint32_t        psr_t; // Program Status register
+
 /* Fixed width types with limits */
 #define UINT8_MAX   0xFF
 #define UINT16_MAX  0xFFFF

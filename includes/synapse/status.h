@@ -19,5 +19,6 @@
 #define ENOTREADY 7
 #define EFAULT 8
 #define NOFREERGE 9 // No free range
+#define EINUSE 10
 
 #endif

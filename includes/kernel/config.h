@@ -29,4 +29,7 @@
 // AI memory pool size (25% of total RAM by default)
 #define AI_MEMORY_POOL_RATIO 4
 
+// Maximum number of interrupt handlers
+#define MAX_INTERRUPT_HANDLERS 128
+
 #endif

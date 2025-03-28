@@ -52,7 +52,7 @@ all: directories kernel
 
 # Create build directories
 directories:
-	@mkdir -p $(BIN_DIR) $(BUILD_DIR) $(ARCH_BUILD_DIR)/boot $(ARCH_BUILD_DIR)/interrupt $(ARCH_BUILD_DIR)/uart $(CORE_BUILD_DIR)  $(CORE_BUILD_DIR)/memory $(CORE_BUILD_DIR)/memory/heap $(CORE_BUILD_DIR)/memory/ai_memory $(CORE_BUILD_DIR)/string
+	@mkdir -p $(BIN_DIR) $(BUILD_DIR) $(ARCH_BUILD_DIR)/boot $(ARCH_BUILD_DIR)/interrupt $(ARCH_BUILD_DIR)/uart $(CORE_BUILD_DIR)  $(CORE_BUILD_DIR)/memory $(CORE_BUILD_DIR)/memory/heap $(CORE_BUILD_DIR)/memory/ai_memory $(CORE_BUILD_DIR)/string $(CORE_BUILD_DIR)/interrupts
 
 # Build subsystems
 arch:
@@ -75,6 +75,7 @@ kernel: arch core
 		$(CORE_BUILD_DIR)/memory/heap/kheap.o \
 		$(CORE_BUILD_DIR)/memory/ai_memory/ai_memory.o \
 		$(CORE_BUILD_DIR)/memory/memory_system.o \
+		$(CORE_BUILD_DIR)/interrupts/interrupt.o \
 		$(CORE_BUILD_DIR)/kernel_main.o
 	$(OBJCOPY) -O binary $(KERNEL_ELF) $(KERNEL_BIN)
 	$(OBJDUMP) -D $(KERNEL_ELF) > $(BUILD_DIR)/kernel.dump
