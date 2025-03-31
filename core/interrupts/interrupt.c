@@ -1,3 +1,11 @@
+/*
+ * interrupt.c - Interrupt Handling for AArch64 processor
+ *
+ * Author: Fedi Nabli
+ * Date: 28 Mar 2025
+ * Last Modified: 28 Mar 2025
+ */
+
 #include "interrupt.h"
 
 #include <uart.h>

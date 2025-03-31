@@ -1,14 +1,14 @@
 # Core subsystem Makefile
 # Author: Fedi Nabli
 # Date: 26 Feb 2025
-# Last Modified: 17 Mar 2025
+# Last Modified: 31 Mar 2025
 
 # Directories definitions
 BUILD_DIR := ../build/core
 INCLUDES := -I../arch/arm64/includes -I../includes
 
 # Source files
-OBJ_FILES := $(BUILD_DIR)/kernel_main.o $(BUILD_DIR)/memory/memory.o $(BUILD_DIR)/memory/heap/heap.o $(BUILD_DIR)/memory/heap/kheap.o $(BUILD_DIR)/memory/ai_memory/ai_memory.o $(BUILD_DIR)/memory/memory_system.o $(BUILD_DIR)/string/string.o $(BUILD_DIR)/interrupts/interrupt.o
+OBJ_FILES := $(BUILD_DIR)/kernel_main.o $(BUILD_DIR)/memory/memory.o $(BUILD_DIR)/memory/heap/heap.o $(BUILD_DIR)/memory/heap/kheap.o $(BUILD_DIR)/memory/ai_memory/ai_memory.o $(BUILD_DIR)/memory/memory_system.o $(BUILD_DIR)/string/string.o $(BUILD_DIR)/interrupts/interrupt.o $(BUILD_DIR)/task/context_switch.o $(BUILD_DIR)/task/task.o
 
 # Compile flags
 CFLAGS += $(INCLUDES) -Wall -Wextra
@@ -51,6 +51,14 @@ $(BUILD_DIR)/string/string.o: string/string.c | $(BUILD_DIR)/string
 # Compile interrupt file
 $(BUILD_DIR)/interrupts/interrupt.o: interrupts/interrupt.c | $(BUILD_DIR)/interrupts
 	$(CC) $(CFLAGS) -I../includes/synapse/interrupts -c -o $(BUILD_DIR)/interrupts/interrupt.o interrupts/interrupt.c
+
+# Compile context switching assembly files
+$(BUILD_DIR)/task/context_switch.o: task/context_switch.S | $(BUILD_DIR)/task
+	$(AS) $(ASFLAGS) -o $(BUILD_DIR)/task/context_switch.o task/context_switch.S
+
+# Compile task file
+$(BUILD_DIR)/task/task.o: task/task.c | $(BUILD_DIR)/task
+	$(CC) $(CFLAGS) -I../includes/synapse/task -c -o $(BUILD_DIR)/task/task.o task/task.c
 
 # Clean build artifacts
 clean:

@@ -1,3 +1,11 @@
+/*
+ * interrupt.h - Interrupt Handling for AArch64 processor
+ *
+ * Author: Fedi Nabli
+ * Date: 28 Mar 2025
+ * Last Modified: 28 Mar 2025
+ */
+
 #ifndef __SYNAPSE_INTERRUPT_H_
 #define __SYNAPSE_INTERRUPT_H_
 
