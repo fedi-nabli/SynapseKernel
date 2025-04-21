@@ -16,7 +16,7 @@
 #define GIC_BASE_ADDRESS ((uintptr_t)0x08000000)
 
 // GIC Distriibutor registers
-#define GICD_BASE           (GIC_BASE_ADDRESS + 0x1000)
+#define GICD_BASE           (GIC_BASE_ADDRESS)
 #define GICD_CTLR           (*((volatile uint32_t*)(GICD_BASE + 0x000)))
 #define GICD_TYPER          (*((volatile uint32_t*)(GICD_BASE + 0x004)))
 #define GICD_IIDR           (*((volatile uint32_t*)(GICD_BASE + 0x008)))
@@ -28,7 +28,7 @@
 #define GICD_ICFGR(n)       (*((volatile uint32_t*)(GICD_BASE + 0xC00 + ((n) * 4))))
 
 // GIC CPU Interface registers
-#define GICC_BASE           (GIC_BASE_ADDRESS + 0x2000)
+#define GICC_BASE           (GIC_BASE_ADDRESS + 0x10000)
 #define GICC_CTLR           (*((volatile uint32_t*)(GICC_BASE + 0x000)))
 #define GICC_PMR            (*((volatile uint32_t*)(GICC_BASE + 0x004)))
 #define GICC_BPR            (*((volatile uint32_t*)(GICC_BASE + 0x008)))

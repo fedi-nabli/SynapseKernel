@@ -26,6 +26,33 @@ struct task* current_task = NULL; // Defined as global for assembly access
 static tid_t next_task_id = 0;
 
 /**
+ * @brief Convert number to hex string (without stdlib)
+ * 
+ * @param value The value to convert
+ * @param buffer Buffer to store the string
+ * @param buffer_size Size of the buffer
+ */
+void uint64_to_hex(uint64_t value, char* buffer, size_t buffer_size) {
+  if (buffer_size < 3) return; // Need at least "0x" and null
+  
+  buffer[0] = '0';
+  buffer[1] = 'x';
+  
+  size_t pos = 2;
+  bool significant = false;
+  
+  for (ssize_t i = 60; i >= 0 && pos < buffer_size - 1; i -= 4) {
+    int digit = (value >> i) & 0xF;
+    if (digit != 0 || significant || i == 0) {
+      buffer[pos++] = digit < 10 ? '0' + digit : 'A' + (digit - 10);
+      significant = true;
+    }
+  }
+  
+  buffer[pos] = '\0';
+}
+
+/**
  * @brief Get current running task
  * 
  * @return struct task* Current task, NULL if none is running
@@ -230,14 +257,47 @@ int task_switch(struct task* task)
 {
   if (!task)
   {
+    uart_send_string("task_switch: NULL task pointer\n");
     return -EINVARG;
   }
+  
+  uart_send_string("task_switch: found task...\n");
+  
+  // CRITICAL: Verify task has valid states before switching
+  if (task->registers.sp == 0)
+  {
+    uart_send_string("task_switch: ERROR - task has NULL stack pointer\n");
+    return -EFAULT;
+  }
+  
+  if (task->registers.pc == 0)
+  {
+    uart_send_string("task_switch: ERROR - task has NULL program counter\n");
+    return -EFAULT;
+  }
+  
+  // Extra debug prints using your existing utility function
+  char buf[32];
+  uart_send_string("task_switch: task SP=");
+  uint64_to_hex(task->registers.sp, buf, sizeof(buf));
+  uart_send_string(buf);
+  uart_send_string(" PC=");
+  uint64_to_hex(task->registers.pc, buf, sizeof(buf));
+  uart_send_string(buf);
+  uart_send_string("\n");
 
+  // CRITICAL: Explicitly set the current_task global before calling assembly
+  current_task = task;
+  
   // Set task state to running
   task->state = TASK_STATE_RUNNING;
 
+  uart_send_string("task_switch: task now running...\n");
+
   // Switch context - will update current_task in assembly
   task_restore_context(task);
+
+  uart_send_string("task_switch: ERROR - task_restore_context returned!\n");
 
   // Should never reach here - task_restore_context does not return if successful
   return -EFAULT;
@@ -317,6 +377,7 @@ int task_run_first_ever_task()
   {
     return -ENOTASK;
   }
+  uart_send_string("task_run_first_ever_task: found task...\n");
 
   // Find first ready task
   struct task* task = task_list_head;
@@ -326,6 +387,7 @@ int task_run_first_ever_task()
   {
     if (task->state == TASK_STATE_READY)
     {
+      uart_send_string("task_run_first_ever_task: found ready task...\n");
       // Switch to first ready task
       return task_switch(task);
     }

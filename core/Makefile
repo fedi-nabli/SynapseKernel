@@ -8,7 +8,7 @@ BUILD_DIR := ../build/core
 INCLUDES := -I../arch/arm64/includes -I../includes
 
 # Source files
-OBJ_FILES := $(BUILD_DIR)/kernel_main.o $(BUILD_DIR)/memory/memory.o $(BUILD_DIR)/memory/heap/heap.o $(BUILD_DIR)/memory/heap/kheap.o $(BUILD_DIR)/memory/ai_memory/ai_memory.o $(BUILD_DIR)/memory/memory_system.o $(BUILD_DIR)/string/string.o $(BUILD_DIR)/interrupts/interrupt.o $(BUILD_DIR)/task/context_switch.o $(BUILD_DIR)/task/task.o
+OBJ_FILES := $(BUILD_DIR)/kernel_main.o $(BUILD_DIR)/memory/memory.o $(BUILD_DIR)/memory/heap/heap.o $(BUILD_DIR)/memory/heap/kheap.o $(BUILD_DIR)/memory/ai_memory/ai_memory.o $(BUILD_DIR)/memory/memory_system.o $(BUILD_DIR)/string/string.o $(BUILD_DIR)/interrupts/interrupt.o $(BUILD_DIR)/task/context_switch.o $(BUILD_DIR)/interrupts/svc.o $(BUILD_DIR)/interrupts/syscall.o $(BUILD_DIR)/timer/timer.o $(BUILD_DIR)/task/task.o $(BUILD_DIR)/process/process.o $(BUILD_DIR)/process/process_memory.o $(BUILD_DIR)/scheduler/scheduler.o $(BUILD_DIR)/process/process_management_init.o
 
 # Compile flags
 CFLAGS += $(INCLUDES) -Wall -Wextra
@@ -52,13 +52,41 @@ $(BUILD_DIR)/string/string.o: string/string.c | $(BUILD_DIR)/string
 $(BUILD_DIR)/interrupts/interrupt.o: interrupts/interrupt.c | $(BUILD_DIR)/interrupts
 	$(CC) $(CFLAGS) -I../includes/synapse/interrupts -c -o $(BUILD_DIR)/interrupts/interrupt.o interrupts/interrupt.c
 
+# Compile svc file
+$(BUILD_DIR)/interrupts/svc.o: interrupts/svc.c | $(BUILD_DIR)/interrupts
+	$(CC) $(CFLAGS) -I../includes/synapse/interrupts -c -o $(BUILD_DIR)/interrupts/svc.o interrupts/svc.c
+
+# Compile syscall file
+$(BUILD_DIR)/interrupts/syscall.o: interrupts/syscall.c | $(BUILD_DIR)/interrupts
+	$(CC) $(CFLAGS) -I../includes/synapse/interrupts -c -o $(BUILD_DIR)/interrupts/syscall.o interrupts/syscall.c
+
 # Compile context switching assembly files
 $(BUILD_DIR)/task/context_switch.o: task/context_switch.S | $(BUILD_DIR)/task
 	$(AS) $(ASFLAGS) -o $(BUILD_DIR)/task/context_switch.o task/context_switch.S
 
 # Compile task file
+$(BUILD_DIR)/timer/timer.o: timer/timer.c | $(BUILD_DIR)/timer
+	$(CC) $(CFLAGS) -I../includes/synapse/timer -c -o $(BUILD_DIR)/timer/timer.o timer/timer.c
+
+# Compile task file
 $(BUILD_DIR)/task/task.o: task/task.c | $(BUILD_DIR)/task
 	$(CC) $(CFLAGS) -I../includes/synapse/task -c -o $(BUILD_DIR)/task/task.o task/task.c
+
+# Compile process file
+$(BUILD_DIR)/process/process.o: process/process.c | $(BUILD_DIR)/process
+	$(CC) $(CFLAGS) -I../includes/synapse/process -c -o $(BUILD_DIR)/process/process.o process/process.c
+
+# Compile process memory file
+$(BUILD_DIR)/process/process_memory.o: process/process_memory.c | $(BUILD_DIR)/process
+	$(CC) $(CFLAGS) -I../includes/synapse/process -c -o $(BUILD_DIR)/process/process_memory.o process/process_memory.c
+
+# Compile scheduler file
+$(BUILD_DIR)/scheduler/scheduler.o: scheduler/scheduler.c | $(BUILD_DIR)/scheduler
+	$(CC) $(CFLAGS) -I../includes/synapse/scheduler -c -o $(BUILD_DIR)/scheduler/scheduler.o scheduler/scheduler.c
+
+# Compile process management file
+$(BUILD_DIR)/process/process_management_init.o: process/process_management_init.c | $(BUILD_DIR)/process
+	$(CC) $(CFLAGS) -I../includes/synapse/process -c -o $(BUILD_DIR)/process/process_management_init.o process/process_management_init.c
 
 # Clean build artifacts
 clean:

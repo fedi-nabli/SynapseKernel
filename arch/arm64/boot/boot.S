@@ -14,6 +14,17 @@
 .global boot_second_stage
 
 boot_second_stage:
+  // Output early debug message
+  adrp x0, str_early_boot2
+  add x0, x0, :lo12:str_early_boot2
+  bl uart_send_string
+
+  // Setup minimal C environment
+  // Debug message before MMU config
+  adrp x0, str_before_mmu
+  add x0, x0, :lo12:str_before_mmu
+  bl uart_send_string
+
   // Output boot message
   adrp x0, str_stage2
   add x0, x0, :lo12:str_stage2
@@ -127,6 +138,10 @@ init_boot_info:
   ret
 
 .section ".rodata"
+str_early_boot2:
+  .asciz "Entered second stage bootloader\n"
+str_before_mmu:
+  .asciz "Configuring system registers\n"
 str_jumping_kernel:
   .asciz "Jumping to kernel, bootloader done...\n"
 str_boot_error:

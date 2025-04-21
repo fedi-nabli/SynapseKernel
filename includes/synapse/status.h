@@ -3,7 +3,7 @@
  *
  * Author: Fedi Nabli
  * Date: 1 Mar 2025
- * Last Modified: 31 Mar 2025
+ * Last Modified: 8 Apr 2025
  */
 
 #ifndef __SYNAPSE_STATUS_H_
@@ -21,5 +21,9 @@
 #define NOFREERGE 9 // No free range
 #define EINUSE 10
 #define ENOTASK 11
+#define EPMAX 12
+#define EINVSYSCALL 13
+#define ESYSCALL 14
+#define ENOENT 15
 
 #endif

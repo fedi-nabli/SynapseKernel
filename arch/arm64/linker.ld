@@ -19,56 +19,53 @@ SECTIONS
   }
 
   /* Second stage bootloader code */
-  .text.boot.stage2 : {
+  .text.boot.stage2 : ALIGN(16) {
     *(.text.boot.stage2)
   }
   
   /* Vector table - must be aligned to 2KB boundary for AArch64 */
   . = ALIGN(2048);
-  .vectors : {
+  .vector : {
     _vectors_start = .;
     vector_table = .;
-    *(.vectors)
+    *(.vector)    /* Changed from .vectors to .vector */
     _vectors_end = .;
   }
   
   /* Main text section */
-  .text : {
-    . = ALIGN(8);
+  .text : ALIGN(16) {
     *(.text)
   }
   
   /* Read-only data */
-  .rodata : {
-    . = ALIGN(8);
+  .rodata : ALIGN(16) {
     *(.rodata)
     *(.rodata.*)
   }
   
   /* Read-write data (initialized) */
-  .data : {
-    . = ALIGN(8);
+  .data : ALIGN(16) {
     _data_start = .;
     *(.data)
     _data_end = .;
   }
   
   /* Read-write data (uninitialized) */
-  .bss : {
-    . = ALIGN(8);
+  .bss : ALIGN(16) {
     __bss_start = .;
     *(.bss)
     *(COMMON)
+    . = ALIGN(16);    /* Ensure end is aligned */
     __bss_end = .;
   }
   
   /* Stack section */
-  . = ALIGN(16);
-  .stack : {
+  .stack (NOLOAD) : ALIGN(16) {
     __stack_start = .;
     . = . + 16384;  /* 16KB stack */
+    . = ALIGN(16);
     __stack_top = .;
-  }
+  } = 0x0
   
   /* Mark the end of the kernel binary */
   _end = .;
@@ -77,5 +74,6 @@ SECTIONS
   /DISCARD/ : {
     *(.comment)
     *(.note*)
+    *(.eh_frame)
   }
 }

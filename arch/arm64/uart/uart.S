@@ -37,6 +37,7 @@
 .global uart_init
 .global uart_send_char
 .global uart_send_string
+.global dump_esr_el1
 
 /**
  * uart_init - Initialize the UART
@@ -166,6 +167,51 @@ uart_send_string:
   ldp x29, x30, [sp], #16
   ret
 
+dump_esr_el1:
+  /* save caller‑saved */
+  stp     x29, x30, [sp, #-16]!
+  stp     x1,  x2,  [sp, #-16]!
+  mov     x29, sp
+
+  /* keep ESR value in x2 */
+  mov     x2, x0
+
+  /* prefix "  ESR_EL1 = 0x" */
+  adrp    x0, str_esr_prefix
+  add     x0, x0, :lo12:str_esr_prefix
+  bl      uart_send_string
+
+  /* -------- print eight hex nibbles -------------- */
+  mov     x1, #28              /* start with top nibble */
+1:
+  lsr     x3, x2, x1           /* isolate nibble  */
+  and     x3, x3, #0xF
+
+  cmp     x3, #10
+  blt     2f                   /* 0‑9 */
+
+  /*  A‑F  */
+  sub     x3, x3, #10
+  add     x3, x3, #'A'
+  b       3f
+2: /*  0‑9  */
+  add     x3, x3, #'0'
+3:
+  mov     x0, x3
+  bl      uart_send_char
+
+  subs    x1, x1, #4           /* next nibble */
+  b.ge    1b
+
+  /* newline */
+  mov     x0, #'\n'
+  bl      uart_send_char
+
+  /* restore & return */
+  ldp     x1,  x2,  [sp], #16
+  ldp     x29, x30, [sp], #16
+  ret
+
 /* Boot stage message strings */
 .section ".rodata"
 str_stage1:
@@ -176,3 +222,5 @@ str_kernel:
   .asciz "Kernel entry reached\n"
 str_vectors:
   .asciz "Vector table initialized\n"
+str_esr_prefix:
+  .asciz "  ESR_EL1 = 0x"

@@ -16,7 +16,10 @@
 #include <synapse/types.h>
 #include <synapse/status.h>
 
+#include <synapse/task/task.h>
 #include <synapse/memory/memory.h>
+
+#define TIMER_IRQ 30
 
 // Interrupt handler table
 static INTERRUPT_HANDLER interrupt_handlers[MAX_INTERRUPT_HANDLERS] = { 0 };
@@ -61,6 +64,7 @@ int interrupt_init()
   for (int i = 0; i < MAX_INTERRUPT_HANDLERS/32; i++)
   {
     GICD_ICENABLER(i) = 0xFFFFFFFF;
+    GICD_ICPENDR(i) = 0xFFFFFFFF;
   }
 
   // Clean any pending interrupts
@@ -69,13 +73,15 @@ int interrupt_init()
     GICD_ISPENDR(i) = 0xFFFFFFFF;
   }
 
-  GICD_CTLR = 0x1; // Enable GIC Distributor
+  GICD_ISENABLER(0) |= (1 << 30); // IRQ 30 is a PPI → bit 30 in register 0
+
+  GICD_CTLR = 0x2; // Enable GIC Distributor
 
   // 2: Initialize GIC CPU Interface (GICC)
   GICC_CTLR = 0x0; // Diable CPU Interface
   GICC_PMR = 0xFF; // No priority masking (lowest priority level)
   GICC_BPR = 0x0; // Use all priority bits for group integrity
-  GICC_CTLR = 0x1; // Enable CPU Interface
+  GICC_CTLR = 0x2; // Enable CPU Interface
 
   // 3: Set up exception vector table
   // This is done in vector.S and loaded during boot
@@ -221,7 +227,9 @@ int interrupt_enable_all()
   }
 
   // Enable interrupts at CPU level
+  uart_send_string("About to enable CPU interrupts at EL1...\n");
   __asm__ volatile("msr daifclr, #2"); // Clear I bit in DAIF
+  uart_send_string("Enabled CPU interrupts at EL1!\n");
 
   return EOK;
 }
@@ -262,6 +270,8 @@ int irq_handler(struct interrupt_frame* int_frame)
   {
     return -ENOTREADY;
   }
+
+  uart_send_string(">> irq_handler() was called!\n");
 
   // Ready interrupt ID from GIC CPU Interface
   uint32_t iar = GICC_IAR;
@@ -312,12 +322,22 @@ int el1_irq_handler(struct interrupt_frame* int_frame)
  */
 int el0_irq_handler(struct interrupt_frame* int_frame)
 {
-  // TODO: Save current task stateif one is running
+  // Save current task state if one is running
+  struct task* current = task_current();
+  if (current != NULL)
+  {
+    task_save_state(current, int_frame);
+  }
 
   // Handle the IRQ
   int res = irq_handler(int_frame);
 
-  // TODO: Check if we need to schedule after handling the IRQ
+  // Check if we need to schedule after handling the IRQ
+  // This depends on what the IRQ handler did
+  if (current != NULL && current->state == TASK_STATE_READY)
+  {
+    task_schedule();
+  }
 
   return res;
 }

@@ -4,7 +4,7 @@
  *
  * Author: Fedi Nabli
  * Date: 2 Mar 2025
- * Last Modified: 2 Mar 2025
+ * Last Modified: 8 Apr 2025
  */
 
 #ifndef __KERNEL_CONFIG_H_
@@ -31,5 +31,15 @@
 
 // Maximum number of interrupt handlers
 #define MAX_INTERRUPT_HANDLERS 128
+
+#define SYNAPSE_MAX_PROCESSES 64
+#define SYNAPSE_MAX_PROCESSES_ALLOCATIONS 128
+#define SYNAPSE_PROCESS_STACK_SIZE (128 * 1024) // 128KB
+#define SYNAPSE_MAX_PROCESS_NAME 64
+
+#define CPU_FREQ_HZ 1000000000 // 1GHz
+
+// Timer tick interval in ms
+#define SCHEDULER_TICKS_MS 10
 
 #endif

@@ -10,6 +10,7 @@
 #define __SYNAPSE_TYPES_H_
 
 #define NULL ((void*)0)
+#define offsetof(TYPE, MEMBER) ((size_t) & ((TYPE*)0)->MEMBER)
 
 /* Integer types */
 typedef unsigned char   uint8_t;
